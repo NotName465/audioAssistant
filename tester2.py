@@ -81,8 +81,6 @@ class EnhancedVoiceRecognizer: #доучивалка для словаря
     def __init__(self, model_path):
         self.model = vosk.Model(model_path)
         self.recognizer = vosk.KaldiRecognizer(self.model, 16000)
-
-        # Словарь для дообучения
         self.enhancement_dict = {
             # Правильные слова: [похожие варианты]
             "гойда": ["гойда"],
