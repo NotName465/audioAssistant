@@ -5,7 +5,6 @@ import os
 import webbrowser
 import time
 
-
 def openBrowser(browserUrl: str = ""):
     try:
         os.startfile(browserUrl)
