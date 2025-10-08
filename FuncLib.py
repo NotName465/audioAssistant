@@ -1,142 +1,122 @@
-import ctypes
 import subprocess
+import psutil
+import ctypes
+import os
 import time
+import pyperclip
 
+def is_app_running(app_path):
+    """Проверяет, запущено ли приложение по его пути"""
+    try:
+        # Нормализуем путь для сравнения
+        target_path = os.path.abspath(app_path).lower()
 
-class BrowserSearcher:
-    """Класс для запуска браузера и ввода русских запросов"""
+        for process in psutil.process_iter(['pid', 'name', 'exe']):
+            try:
+                process_exe = process.info['exe']
+                if process_exe and os.path.abspath(process_exe).lower() == target_path:
+                    print(f"✅ Приложение запущено (PID: {process.info['pid']})")
+                    return True
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
 
-    # Взаимодействие с выводчиком текста (0)
-    # Взаимодействие с раскладкой (1)
+        print("❌ Приложение не запущено")
+        return False
 
-    def __init__(self):
-        # Настройка ctypes для работы с Win32 API
-        self.user32 = ctypes.windll.user32
-        self.kernel32 = ctypes.windll.kernel32
+    except Exception as e:
+        print(f"❌ Ошибка проверки: {e}")
+        return False
 
-        # Константы
-        self.VK_SHIFT = 0x10  # (0)
-        self.VK_CONTROL = 0x11  # (0)
-        self.VK_RETURN = 0x0D  # (0)
-        self.VK_SPACE = 0x20  # (0)
-        self.KEYEVENTF_KEYUP = 0x0002  # (0)
+def restore_browser_window():
+    """Специальная функция для восстановления окна браузера"""
+    user32 = ctypes.windll.user32
 
-        self.WM_INPUTLANGCHANGEREQUEST = 0x0050  # (1)
-        self.WM_INPUTLANGCHANGE = 0x0051  # (1)
-
-        # Раскладки
-        self.LAYOUTS = {
-            'EN': 0x409,
-            'RU': 0x419,
-        }
-
-    def get_keyboard_layout(self):  # (1)
-        """Получить текущую раскладку клавиатуры"""
-        hwnd = self.user32.GetForegroundWindow()
-        thread_id = self.kernel32.GetCurrentThreadId()
-        layout_id = self.user32.GetKeyboardLayout(thread_id)
-
-        # Младшее слово содержит код языка
-        lang_id = layout_id & 0xFFFF
-
-        if lang_id == 0x409:  # Английский
-            return "EN"
-        elif lang_id == 0x419:  # Русский
-            return "RU"
-        else:
-            return f"Unknown: {hex(lang_id)}"
-
-    def track_layout_changes(self):  # (1)
-        """Отслеживать изменения раскладки"""
-        last_layout = self.get_keyboard_layout()
-        print(f"Текущая раскладка: {last_layout}")
-
+    def enum_windows(hwnd, param):
         try:
-            while True:
-                current_layout = self.get_keyboard_layout()
-                if current_layout != last_layout:
-                    print(f"Раскладка изменена: {last_layout} -> {current_layout}")
-                    last_layout = current_layout
-                time.sleep(0.1)
-        except KeyboardInterrupt:
-            print("Отслеживание остановлено")
-
-    def set_keyboard_layout(self, layout_name):  # (1)
-        """Установить указанную раскладку клавиатуры"""
-        try:
-            if layout_name.upper() not in self.LAYOUTS:
-                print(f"Неизвестная раскладка: {layout_name}")
-                print(f"Доступные раскладки: {', '.join(self.LAYOUTS.keys())}")
-                return False
-
-            layout_code = self.LAYOUTS[layout_name.upper()]
-            hwnd = self.user32.GetForegroundWindow()
-
-            # Используем ActivateKeyboardLayout вместо PostMessageW
-            result = self.user32.ActivateKeyboardLayout(layout_code, 0)
-
-            if result:
-                print(f"Раскладка успешно изменена на: {layout_name}")
+            # Проверяем видимость
+            if not user32.IsWindowVisible(hwnd):
                 return True
-            else:
-                print("Не удалось изменить раскладку")
-                return False
 
-        except Exception as e:
-            print(f"Ошибка при смене раскладки: {e}")
-            return False
+            # Получаем заголовок
+            length = user32.GetWindowTextLengthW(hwnd)
+            if length > 0:
+                buffer = ctypes.create_unicode_buffer(length + 1)
+                user32.GetWindowTextW(hwnd, buffer, length + 1)
+                title = buffer.value
 
-    def send_russian_text_simple(self, text):  # (0)
-        """Простой ввод русского текста"""
-        # Увеличиваем задержку для стабилизации раскладки
+                # Ищем окна браузера по заголовку
+                if title and any(keyword in title for keyword in ['Yandex', 'Яндекс Браузер', 'Opera', 'Chrome', 'Firefox', 'Edge']):
+                    print(f"Найден браузер: {title}")
+
+                    if user32.IsIconic(hwnd):
+                        user32.ShowWindow(hwnd, 9)
+
+                    user32.SetForegroundWindow(hwnd)
+                    return False
+        except:
+            pass
+        return True
+
+    callback = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)(enum_windows)
+    user32.EnumWindows(callback, 0)
+
+
+def open_browser_and_search(browser_path: str, search_query: str):
+    """Открывает браузер и вставляет текст в поисковую строку"""
+
+    # Инициализация WinAPI
+    user32 = ctypes.windll.user32
+    VK_CONTROL = 0x11
+    VK_RETURN = 0x0D
+    VK_V = 0x56
+    KEYEVENTF_KEYUP = 0x0002
+
+    try:
+        # Сохраняем исходное содержимое буфера обмена
+        original_clipboard = pyperclip.paste()
+        # print(f"📋 Сохранено исходное содержимое буфера: '{original_clipboard}'")
+
+        # Копируем поисковый запрос в буфер обмена
+        pyperclip.copy(search_query)
+        # print(f"✅ Поисковый запрос скопирован: '{search_query}'")
+
+        if(is_app_running(browser_path)):
+            restore_browser_window()
+        else:
+            os.start.file(browser_path)
+            time.sleep(1)
+        # Фокус на адресную строку
+        user32.keybd_event(VK_CONTROL, 0, 0, 0)
+        user32.keybd_event(ord('L'), 0, 0, 0)
+        user32.keybd_event(ord('L'), 0, KEYEVENTF_KEYUP, 0)
+        user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
+        time.sleep(0.5)
+
+        # Вставляем текст из буфера обмена (Ctrl+V)
+        user32.keybd_event(VK_CONTROL, 0, 0, 0)
+        user32.keybd_event(VK_V, 0, 0, 0)
+        user32.keybd_event(VK_V, 0, KEYEVENTF_KEYUP, 0)
+        user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
+        time.sleep(0.5)
+
+        # Нажатие Enter
+        user32.keybd_event(VK_RETURN, 0, 0, 0)
+        user32.keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0)
+
         time.sleep(1)
 
-        for char in text:
-            if char == ' ':
-                self.user32.keybd_event(self.VK_SPACE, 0, 0, 0)
-                self.user32.keybd_event(self.VK_SPACE, 0, self.KEYEVENTF_KEYUP, 0)
-            else:
-                # Для русских букв просто отправляем скан-коды
-                # Это сработает если в системе включена русская раскладка
-                vk_code = self.user32.VkKeyScanW(ord(char))
-                # Нажимаем клавишу
-                self.user32.keybd_event(vk_code & 0xFF, 0, 0, 0)
-                self.user32.keybd_event(vk_code & 0xFF, 0, self.KEYEVENTF_KEYUP, 0)
-            time.sleep(0.05)
+        # Восстановление исходного содержимого буфера обмена
+        pyperclip.copy(original_clipboard)
 
-    def search(self, browser_path: str, search_query: str):  # (0)
-        """Запускает браузер и вводит русский запрос"""
+        print("✅ Поиск успешно выполнен!")
+        return True
 
-        # Сначала устанавливаем русскую раскладку
-        print("Устанавливаем русскую раскладку...")
-        self.set_keyboard_layout("RU")
-
-        # Даем больше времени для смены раскладки
-        time.sleep(2)
-
-        # Запускаем браузер
-        subprocess.Popen([browser_path])
-
-        # Увеличиваем время ожидания запуска браузера
-        time.sleep(3)
-
-        # Фокус на адресную строку
-        self.user32.keybd_event(self.VK_CONTROL, 0, 0, 0)
-        self.user32.keybd_event(ord('L'), 0, 0, 0)
-        self.user32.keybd_event(ord('L'), 0, self.KEYEVENTF_KEYUP, 0)
-        self.user32.keybd_event(self.VK_CONTROL, 0, self.KEYEVENTF_KEYUP, 0)
-        time.sleep(0.5)
-
-        # Вводим текст
-        self.send_russian_text_simple(search_query)
-        time.sleep(0.5)
-
-        # Выполняем поиск
-        self.user32.keybd_event(self.VK_RETURN, 0, 0, 0)
-        self.user32.keybd_event(self.VK_RETURN, 0, self.KEYEVENTF_KEYUP, 0)
-
-
-# Использование
-if __name__ == "__main__":
-    searcher = BrowserSearcher()
-    searcher.search(r"C:\Users\user\AppData\Local\Programs\Opera GX\opera.exe", "Нарды")
+    except Exception as e:
+        print(f"❌ Ошибка: {e}")
+        # Пытаемся восстановить буфер в случае ошибки
+        try:
+            pyperclip.copy(original_clipboard)
+            print(f"🔄 Буфер восстановлен после ошибки")
+        except:
+            pass
+        return False
