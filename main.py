@@ -5,6 +5,9 @@ import os
 import webbrowser
 import time
 from FuncLib import open_browser_and_search
+from FuncLib import remove_keywords, close_tab, new_tab, go_to_tab
+
+
 def openBrowser(browserUrl: str = ""):
     try:
         os.startfile(browserUrl)
@@ -37,7 +40,14 @@ def Starter(text: list, browserUrl: str = ""):
         print("Закрываю Dota 2")
     elif "найди" in text_str and "в" in text_str and "интернете":
 
-        open_browser_and_search(browserUrl, text_str)
+        open_browser_and_search(browserUrl, remove_keywords(text_str))
+    elif "закрой" in text_str and "вкладку" in text_str:
+        close_tab()
+    elif "создай" in text_str and "вкладку" in text_str:
+        new_tab()
+    elif "открой" in text_str and "вкладку" in text_str:
+        go_to_tab(remove_keywords(text_str))
+
 
 
 def VoiceActive(activation_word="ассистент"):
@@ -133,7 +143,8 @@ class EnhancedVoiceRecognizer:
         self.recognizer = vosk.KaldiRecognizer(self.model, 16000)
         self.enhancement_dict = {
             "дух машины": [" духмашины", "машинный дух", "дух машине", "дух машину"],
-            "машинный дух": ["машинные дух"]
+            "машинный дух": ["машинные дух"],
+            "вкладку": ["вклад куб"],
         }
 
 
