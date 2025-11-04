@@ -1,0 +1,62 @@
+{
+  "commands": [
+    {
+      "name": "open_browser",
+      "keywords": ["открой", "браузер"],
+      "function": "openBrowser",
+      "args": ["browserUrl"]
+    },
+    {
+      "name": "close_browser",
+      "keywords": ["закрой", "браузер"],
+      "function": "closeBrowser",
+      "args": ["browserUrl"]
+    },
+    {
+      "name": "open_dota",
+      "keywords": ["открой", "доту"],
+      "function": "openDota",
+      "args": []
+    },
+    {
+      "name": "close_dota",
+      "keywords": ["закрой", "доту"],
+      "function": "closeDota",
+      "args": []
+    },
+    {
+      "name": "search_web",
+      "keywords": ["найди", "в", "интернете"],
+      "function": "open_browser_and_search",
+      "args": ["browserUrl", "remove_keywords(text_str)"]
+    },
+    {
+      "name": "close_tab",
+      "keywords": ["закрой", "вкладку"],
+      "function": "close_tab",
+      "args": []
+    },
+    {
+      "name": "new_tab",
+      "keywords": ["создай", "вкладку"],
+      "function": "new_tab",
+      "args": []
+    },
+    {
+      "name": "go_to_tab",
+      "keywords": ["открой", "вкладку"],
+      "function": "go_to_tab",
+      "args": ["remove_keywords(text_str)"]
+    },{
+      "name": "scroll_down",
+      "keywords": ["прокрути", "вниз"],
+      "function": "scroll_down",
+      "args": []
+    },{
+      "name": "scroll_up",
+      "keywords": ["прокрути", "вверх"],
+      "function": "scroll_up",
+      "args": []
+    }
+  ]
+}

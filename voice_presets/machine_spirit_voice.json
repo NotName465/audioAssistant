@@ -1,0 +1,21 @@
+{
+  "voice_preset": {
+    "name": "Machine_Spirit_Warhammer",
+    "description": "Голос Духа Машины из Warhammer 40k",
+    "author": "Adeptus Mechanicus",
+    "version": "1.0",
+    "system_settings": {
+      "preferred_voices": [
+        "Microsoft David Desktop",
+        "Михаил",
+        "Ivan"
+      ],
+      "voice_type": "male_deep",
+      "language": "russian"
+    },
+    "voice_parameters": {
+      "rate": 90,
+      "volume": 0.95
+    }
+  }
+}
