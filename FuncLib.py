@@ -6,6 +6,15 @@ import pyperclip
 import webbrowser
 import pyautogui
 
+# Инициализация WinAPI
+user32 = ctypes.windll.user32
+VK_CONTROL = 0x11
+VK_RETURN = 0x0D
+VK_V = 0x56
+VK_W = 0x57
+VK_T = 0x54
+KEYEVENTF_KEYUP = 0x0002
+
 def is_app_running(app_path):
     """Проверяет, запущено ли приложение по его пути"""
     try:
@@ -64,13 +73,6 @@ def restore_browser_window():
 
 def open_browser_and_search(browser_path: str, search_query: str):
     """Открывает браузер и вставляет текст в поисковую строку"""
-
-    # Инициализация WinAPI
-    user32 = ctypes.windll.user32
-    VK_CONTROL = 0x11
-    VK_RETURN = 0x0D
-    VK_V = 0x56
-    KEYEVENTF_KEYUP = 0x0002
 
     try:
         # Сохраняем исходное содержимое буфера обмена
@@ -181,13 +183,23 @@ def remove_keywords(input_string, remove_all=True, case_sensitive=False):
 
 def close_tab():
     """Закрыть текущую вкладку"""
-    pyautogui.hotkey('ctrl', 'w')
+    # pyautogui.hotkey('ctrl', 'w')
+    user32.keybd_event(VK_CONTROL, 0, 0, 0)
+    user32.keybd_event(VK_W, 0, 0, 0)
+    user32.keybd_event(VK_W, 0, KEYEVENTF_KEYUP, 0)
+    user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
     time.sleep(0.5)
     print("❌ Вкладка закрыта")
 
 def new_tab():
     """Новая вкладка"""
-    pyautogui.hotkey('ctrl', 't')
+    # pyautogui.hotkey('ctrl', 't')
+
+    user32.keybd_event(VK_CONTROL, 0, 0, 0)
+    user32.keybd_event(VK_T, 0, 0, 0)
+    user32.keybd_event(VK_T, 0, KEYEVENTF_KEYUP, 0)
+    user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
+
     time.sleep(0.5)
     print("➕ Новая вкладка создана")
 
@@ -264,4 +276,16 @@ def go_to_tab(tab_number, browser_path: str = " "):
     except Exception as e:
         print(f"❌ Ошибка при переходе на вкладку '{original_input}': {e}")
         return False
+
+
+def scroll_down(forScroll: int = 500):
+    pyautogui.scroll(-forScroll)
+    time.sleep(0.5)
+
+
+def scroll_up(forScroll: int = 500):
+    pyautogui.scroll(forScroll)
+    time.sleep(0.5)
+
+
 

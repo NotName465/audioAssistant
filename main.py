@@ -4,10 +4,11 @@ import json
 import os
 import webbrowser
 import time
-from FuncLib import open_browser_and_search
-from FuncLib import remove_keywords, close_tab, new_tab, go_to_tab
+from FuncLib import open_browser_and_search, remove_keywords, close_tab, new_tab, go_to_tab, scroll_up, scroll_down
 
-
+usedComandList = []
+comandPool = ('browser')
+comandsForStarter = []
 def openBrowser(browserUrl: str = ""):
     try:
         os.startfile(browserUrl)
@@ -18,35 +19,84 @@ def Sorter(text: str):
     sorted_text = text.split(" ")
     return sorted_text
 
-def forClose(Url: str):
-    return Url.split('\\')[-1]
 def Starter(text: list, browserUrl: str = ""):
+    # Конфигурации
     browserUrl = r"C:\Users\user\AppData\Local\Programs\Opera GX\opera.exe"
     dotaName = r"C:\Users\user\Desktop\Dota 2.url"
 
     text_str = " ".join(text).lower()
 
-    if "открой" in text_str and "браузер" in text_str:
-        openBrowser(browserUrl)
-        print("Открываю браузер")
-    elif "закрой" in text_str and "браузер" in text_str:
-        os.system(f"taskkill /f /im {forClose(browserUrl)}")
-        print("Закрываю браузер")
-    elif "открой" in text_str and "доту" in text_str:
-        os.startfile(dotaName)
-        print("Открываю Dota 2")
-    elif "закрой" in text_str and "доту" in text_str:
-        os.system(f"taskkill /f /im dota2.exe")
-        print("Закрываю Dota 2")
-    elif "найди" in text_str and "в" in text_str and "интернете":
+    # Загружаем команды из JSON
+    with open('commands.json', 'r', encoding='utf-8') as f:
+        commands_config = json.load(f)
 
-        open_browser_and_search(browserUrl, remove_keywords(text_str))
-    elif "закрой" in text_str and "вкладку" in text_str:
-        close_tab()
-    elif "создай" in text_str and "вкладку" in text_str:
-        new_tab()
-    elif "открой" in text_str and "вкладку" in text_str:
-        go_to_tab(remove_keywords(text_str))
+    # Ищем подходящую команду
+    for command in commands_config['commands']:
+        if all(keyword in text_str for keyword in command['keywords']):
+            print(f"🎯 Выполняю: {command['name']}")
+            execute_command(command, text_str, browserUrl, dotaName)
+            return
+
+    print("❌ Команда не распознана")
+
+
+def execute_command(command, text_str, browserUrl, dotaName):
+    """Выполняет команду на основе конфигурации"""
+
+    # Словарь функций
+    functions = {
+        'openBrowser': openBrowser,
+        'closeBrowser': closeBrowser,
+        'openDota': openDota,
+        'closeDota': closeDota,
+        'open_browser_and_search': open_browser_and_search,
+        'close_tab': close_tab,
+        'new_tab': new_tab,
+        'go_to_tab': go_to_tab,
+        'scroll_down': scroll_down,
+        'scroll_up': scroll_up
+    }
+
+    # Подготавливаем аргументы
+    args = []
+    for arg in command['args']:
+        if arg == 'browserUrl':
+            args.append(browserUrl)
+        elif arg == 'remove_keywords(text_str)':
+            args.append(remove_keywords(text_str))
+        elif arg == 'text_str':
+            args.append(text_str)
+        elif arg == 'dotaName':
+            args.append(dotaName)
+        else:
+            args.append(arg)
+
+    # Вызываем функцию
+    try:
+        func = functions[command['function']]
+        func(*args)
+    except KeyError:
+        print(f"❌ Функция {command['function']} не найдена")
+    except Exception as e:
+        print(f"❌ Ошибка выполнения: {e}")
+
+
+# Вспомогательные функции
+def closeBrowser(url):
+    os.system(f"taskkill /f /im {forClose(url)}")
+
+
+def openDota():
+    dotaName = r"C:\Users\user\Desktop\Dota 2.url"
+    os.startfile(dotaName)
+
+
+def closeDota():
+    os.system("taskkill /f /im dota2.exe")
+
+
+def forClose(url):
+    return os.path.basename(url)
 
 
 

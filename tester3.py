@@ -1,23 +1,15 @@
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+from ctypes import cast, POINTER
+from comtypes import CLSCTX_ALL
+from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+import math
 
+# Get default audio device using PyCAW
+devices = AudioUtilities.GetSpeakers()
+interface = devices.Activate(
+    IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+volume = cast(interface, POINTER(IAudioEndpointVolume))
 
-def count_tabs_selenium(browser_path):
-    """Подсчет вкладок через Selenium"""
-
-    options = Options()
-    options.binary_location = browser_path
-
-    try:
-        driver = webdriver.Chrome(options=options)
-        tab_count = len(driver.window_handles)
-        driver.quit()
-        return tab_count
-    except Exception as e:
-        print(f"Ошибка: {e}")
-        return 0
-
-
-# Использование
-tabs = count_tabs_selenium(r"C:\Program Files\Opera GX\opera.exe")
-print(f"Открыто вкладок: {tabs}")
+# Get current volume
+currentVolumeDb = volume.GetMasterVolumeLevel()
+volume.SetMasterVolumeLevel(currentVolumeDb - 6.0, None)
+# NOTE: -6.0 dB = half volume !
