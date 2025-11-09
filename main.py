@@ -4,7 +4,7 @@ import json
 import os
 import webbrowser
 import time
-from FuncLib import open_browser_and_search, remove_keywords, close_tab, new_tab, go_to_tab, scroll_up, scroll_down
+from FuncLib import open_browser_and_search, remove_keywords, close_tab, new_tab, go_to_tab, scroll_up, scroll_down, volume_down, volume_up, mute
 
 usedComandList = []
 comandPool = ('browser')
@@ -54,7 +54,10 @@ def execute_command(command, text_str, browserUrl, dotaName):
         'new_tab': new_tab,
         'go_to_tab': go_to_tab,
         'scroll_down': scroll_down,
-        'scroll_up': scroll_up
+        'scroll_up': scroll_up,
+        'mute': mute,
+        'volume_down': volume_down,
+        'volume_up': volume_up
     }
 
     # Подготавливаем аргументы
@@ -102,7 +105,7 @@ def forClose(url):
 
 def VoiceActive(activation_word="ассистент"):
 
-    MODEL_PATH = r"C:\Users\user\PycharmProjects\audioAssistant\vosk-model-small-ru-0.22"
+    MODEL_PATH = r"C:\Users\user\Desktop\vosk-model-ru-0.42"
 
     print("Загружаем модель...")
     model = vosk.Model(MODEL_PATH)
@@ -185,7 +188,6 @@ def VoiceActive(activation_word="ассистент"):
         stream.stop_stream()
         stream.close()
         mic.terminate()
-
 
 class EnhancedVoiceRecognizer:
     def __init__(self, model_path):

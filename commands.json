@@ -57,6 +57,26 @@
       "keywords": ["прокрути", "вверх"],
       "function": "scroll_up",
       "args": []
+    },{
+      "name": "mute",
+      "keywords": ["выключи", "звук"],
+      "function": "mute",
+      "args": []
+    },{
+      "name": "mute",
+      "keywords": ["включи", "звук"],
+      "function": "mute",
+      "args": []
+    },{
+      "name": "volume_up",
+      "keywords": ["громче"],
+      "function": "volume_up",
+      "args": []
+    },{
+      "name": "volume_downp",
+      "keywords": ["тише"],
+      "function": "volume_down",
+      "args": []
     }
   ]
 }

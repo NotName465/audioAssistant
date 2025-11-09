@@ -1,78 +1,194 @@
-import os
-import webbrowser
+import subprocess
 
-import pyautogui
-import time
-from FuncLib import is_app_running, restore_browser_window
-def go_to_tab(tab_number, browser_path: str = " "):
-    if (not is_app_running(browser_path)):
-        restore_browser_window()
-    else:
-        try:
-            os.startfile(browser_path)
-        except:
-            webbrowser.open("http://yandex.ru")
 
-    # Словарь для преобразования текста в цифры
-    number_words = {
-        'перв': 1, 'перва': 1, 'первой': 1, 'первую': 1, 'один': 1,
-        'втор': 2, 'втора': 2, 'второй': 2, 'вторую': 2, 'два': 2,
-        'трет': 3, 'треть': 3, 'третий': 3, 'третью': 3, 'три': 3,
-        'четверт': 4, 'четверта': 4, 'четвертой': 4, 'четвертую': 4, 'четыре': 4,
-        'пят': 5, 'пята': 5, 'пятый': 5, 'пятую': 5, 'пять': 5,
-        'шест': 6, 'шеста': 6, 'шестой': 6, 'шестую': 6, 'шесть': 6,
-        'седьм': 7, 'седьма': 7, 'седьмой': 7, 'седьмую': 7, 'семь': 7,
-        'восьм': 8, 'восьма': 8, 'восьмой': 8, 'восьмую': 8, 'восемь': 8,
-        'девят': 9, 'девята': 9, 'девятый': 9, 'девятую': 9, 'девять': 9,
-    }
-    original_input = tab_number
-
+def is_sound_muted():
+    """
+    Проверяет, заглушен ли звук на ПК через PowerShell
+    """
     try:
-        # Если уже число
-        if isinstance(tab_number, int):
-            final_number = tab_number
+        # PowerShell команда для точной проверки mute статуса
+        ps_command = """
+        # Пробуем несколько способов определить mute статус
+        $result = $false
 
-        # Если строка
-        elif isinstance(tab_number, str):
-            tab_number = tab_number.lower().strip()
+        try {
+            # Способ 1: Через AudioDevice командлет (если установлен)
+            if (Get-Command Get-AudioDevice -ErrorAction SilentlyContinue) {
+                $device = Get-AudioDevice -Playback
+                if ($device.Mute -eq $true) {
+                    $result = $true
+                }
+            }
+        } catch {}
 
-            # Пробуем извлечь цифру из строки
-            if tab_number.isdigit():
-                final_number = int(tab_number)
-            else:
-                # Ищем текстовое представление в словаре
-                found_number = None
-                for word, number in number_words.items():
-                    if word in tab_number:
-                        found_number = number
-                        break
+        if (-not $result) {
+            try {
+                # Способ 2: Через Windows API
+                Add-Type -TypeDefinition @'
+                using System;
+                using System.Runtime.InteropServices;
+                public class AudioMuteChecker {
+                    [DllImport("winmm.dll")]
+                    public static extern int waveOutGetVolume(IntPtr hwo, out uint dwVolume);
 
-                if found_number:
-                    final_number = found_number
-                else:
-                    # Пробуем извлечь цифру из смешанного текста
-                    digits = ''.join(filter(str.isdigit, tab_number))
-                    if digits:
-                        final_number = int(digits)
-                    else:
-                        print(f"❌ Не удалось распознать номер вкладки: '{original_input}'")
-                        return False
+                    [DllImport("winmm.dll")] 
+                    public static extern int waveOutSetVolume(IntPtr hwo, uint dwVolume);
 
-        else:
-            print(f"❌ Неподдерживаемый тип: {type(tab_number)}")
-            return False
+                    public static bool IsSystemMuted() {
+                        uint currentVolume;
+                        int result = waveOutGetVolume(IntPtr.Zero, out currentVolume);
 
-        # Проверяем диапазон
-        if 1 <= final_number <= 9:
-            pyautogui.hotkey('ctrl', str(final_number))
-            time.sleep(0.3)
-            current_tab = final_number - 1
-            print(f"🎯 Перешли на {original_input} вкладку (#{final_number})")
-            return True
-        else:
-            print(f"❌ Номер вкладки должен быть от 1 до 9, получено: {final_number}")
-            return False
+                        if (result == 0) {
+                            // Сохраняем текущую громкость
+                            uint savedVolume = currentVolume;
+
+                            // Пробуем изменить громкость
+                            uint testVolume = (savedVolume == 0) ? 0x50005000 : 0;
+                            waveOutSetVolume(IntPtr.Zero, testVolume);
+
+                            // Проверяем изменилась ли громкость
+                            uint newVolume;
+                            waveOutGetVolume(IntPtr.Zero, out newVolume);
+
+                            // Восстанавливаем громкость
+                            waveOutSetVolume(IntPtr.Zero, savedVolume);
+
+                            // Если громкость не изменилась - вероятно muted
+                            return newVolume == currentVolume;
+                        }
+                        return false;
+                    }
+                }
+'@
+                $result = [AudioMuteChecker]::IsSystemMuted()
+            } catch {
+                # Способ 3: Через реестр
+                try {
+                    $muteValue = Get-ItemProperty -Path "HKCU:\\Software\\Microsoft\\Multimedia\\Audio" -Name "UserMute" -ErrorAction SilentlyContinue
+                    if ($muteValue -ne $null) {
+                        $result = [bool]$muteValue.UserMute
+                    }
+                } catch {}
+            }
+        }
+
+        # Возвращаем результат
+        if ($result) { "MUTED" } else { "UNMUTED" }
+        """
+
+        result = subprocess.run([
+            "powershell", "-Command", ps_command
+        ], capture_output=True, text=True, timeout=15)
+
+        if result.returncode == 0:
+            output = result.stdout.strip()
+            return "MUTED" in output
+
+        return False
 
     except Exception as e:
-        print(f"❌ Ошибка при переходе на вкладку '{original_input}': {e}")
+        print(f"Ошибка проверки mute: {e}")
         return False
+
+
+# Альтернативная функция через анализ системных иконок
+def is_sound_muted_icon():
+    """
+    Определяет mute статус по системной иконке звука (косвенный метод)
+    """
+    try:
+        ps_command = """
+        # Проверяем наличие иконки muted в системном трее
+        Add-Type -TypeDefinition @'
+        using System;
+        using System.Runtime.InteropServices;
+        using System.Diagnostics;
+        public class SystemTrayChecker {
+            [DllImport("user32.dll")]
+            public static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+
+            [DllImport("user32.dll")]
+            public static extern IntPtr FindWindowEx(IntPtr hwndParent, IntPtr hwndChildAfter, string lpszClass, string lpszWindow);
+
+            [DllImport("user32.dll", SetLastError = true)]
+            public static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder lpString, int nMaxCount);
+
+            public static string CheckVolumeIcon() {
+                try {
+                    // Ищем окно системного трея
+                    IntPtr systemTray = FindWindow("Shell_TrayWnd", null);
+                    if (systemTray != IntPtr.Zero) {
+                        IntPtr trayNotify = FindWindowEx(systemTray, IntPtr.Zero, "TrayNotifyWnd", null);
+                        if (trayNotify != IntPtr.Zero) {
+                            // Косвенный признак - если в названии процессов есть упоминание muted
+                            Process[] processes = Process.GetProcesses();
+                            foreach (Process p in processes) {
+                                if (p.ProcessName.ToLower().Contains("audio") || 
+                                    p.ProcessName.ToLower().Contains("sound") ||
+                                    p.MainWindowTitle.ToLower().Contains("mute")) {
+                                    return "MUTED";
+                                }
+                            }
+                        }
+                    }
+                } catch {}
+                return "UNMUTED";
+            }
+        }
+'@
+        [SystemTrayChecker]::CheckVolumeIcon()
+        """
+
+        result = subprocess.run([
+            "powershell", "-Command", ps_command
+        ], capture_output=True, text=True, timeout=10)
+
+        if result.returncode == 0:
+            output = result.stdout.strip()
+            return "MUTED" in output
+
+        return False
+
+    except Exception as e:
+        print(f"Ошибка проверки иконки: {e}")
+        return False
+
+
+# Универсальная функция
+def check_mute_status():
+    """
+    Комбинированная проверка mute статуса
+    """
+    # Пробуем основной способ
+    muted = is_sound_muted()
+
+    # Если не уверены, пробуем альтернативный
+    if not muted:
+        muted_alt = is_sound_muted_icon()
+        return muted_alt
+
+    return muted
+
+
+# Простой способ через тестовый звук
+def is_sound_muted_simple():
+    """
+    Простая проверка через попытку воспроизведения звука
+    """
+    try:
+        import winsound
+        # Пробуем воспроизвести очень тихий звук
+        winsound.Beep(37, 100)  # 37 Hz - почти неслышимый звук
+        return False  # Если звук воспроизвелся - не muted
+    except:
+        return True  # Если ошибка - вероятно muted
+
+
+# Использование
+if __name__ == "__main__":
+    print("=== Проверка статуса звука ===")
+
+    print("1. Основной способ:", "🔇 MUTED" if is_sound_muted() else "🔊 UNMUTED")
+    print("2. Через иконки:", "🔇 MUTED" if is_sound_muted_icon() else "🔊 UNMUTED")
+    print("3. Тестовый звук:", "🔇 MUTED" if is_sound_muted_simple() else "🔊 UNMUTED")
+    print("4. Комбинированный:", "🔇 MUTED" if check_mute_status() else "🔊 UNMUTED")

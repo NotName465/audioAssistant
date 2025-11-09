@@ -288,4 +288,26 @@ def scroll_up(forScroll: int = 500):
     time.sleep(0.5)
 
 
+def volume_up():
+    for i in range(5):
+        ctypes.windll.user32.keybd_event(0xAF, 0, 0, 0)
+        ctypes.windll.user32.keybd_event(0xAF, 0, 2, 0)
+        time.sleep(0.08)
+    return "Громкость увеличена"
+
+
+def volume_down():
+    for i in range(5):
+        ctypes.windll.user32.keybd_event(0xAE, 0, 0, 0)
+        ctypes.windll.user32.keybd_event(0xAE, 0, 2, 0)
+        time.sleep(0.08)
+    return "Громкость уменьшена"
+
+
+def mute():
+    ctypes.windll.user32.keybd_event(0xAD, 0, 0, 0)
+    ctypes.windll.user32.keybd_event(0xAD, 0, 2, 0)
+    return "Звук отключен"
+
+
 
