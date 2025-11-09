@@ -105,7 +105,7 @@ def forClose(url):
 
 def VoiceActive(activation_word="ассистент"):
 
-    MODEL_PATH = r"C:\Users\user\Desktop\vosk-model-ru-0.42"
+    MODEL_PATH = r"vosk-model-small-ru-0.22"
 
     print("Загружаем модель...")
     model = vosk.Model(MODEL_PATH)
