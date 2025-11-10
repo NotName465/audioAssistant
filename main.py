@@ -204,5 +204,4 @@ class EnhancedVoiceRecognizer:
 
 
 if __name__ == "__main__":
-    if(startCheckLibs() == True):
-        VoiceActive("один")
+    VoiceActive("один")
