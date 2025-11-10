@@ -132,39 +132,39 @@ def check_and_install_imports():
         return False
 
 
-def create_requirements_file():
-    """Создает файл requirements.txt с текущими зависимостями"""
-    requirements_content = """# Requirements for audioAssistant project
-# Generated automatically
-# pip install -r requirements.txt - ручная установка.
-# Основные библиотеки для голосового помощника
-speechrecognition==3.10.0
-pyttsx3==2.90
-pyaudio==0.2.11
-requests==2.31.0
-pygame==2.5.2
-python-dotenv==1.0.0
+# def create_requirements_file():
+#     """Создает файл requirements.txt с текущими зависимостями"""
+#     requirements_content = """# Requirements for audioAssistant project
+# # Generated automatically
+# # pip install -r requirements.txt - ручная установка.
+# # Основные библиотеки для голосового помощника
+# speechrecognition==3.10.0
+# pyttsx3==2.90
+# pyaudio==0.2.11
+# requests==2.31.0
+# pygame==2.5.2
+# python-dotenv==1.0.0
+#
+# # Для оффлайн распознавания речи
+# vosk==0.3.45
+# sounddevice==0.4.6
+#
+# # Для управления громкостью Windows
+# pycaw==2023.8.23
+# comtypes==1.1.14
+#
+# # Дополнительные утилиты
+# psutil==5.9.6
+# beautifulsoup4==4.12.2
+# urllib3==2.0.7
+# """
 
-# Для оффлайн распознавания речи
-vosk==0.3.45
-sounddevice==0.4.6
-
-# Для управления громкостью Windows
-pycaw==2023.8.23
-comtypes==1.1.14
-
-# Дополнительные утилиты
-psutil==5.9.6
-beautifulsoup4==4.12.2
-urllib3==2.0.7
-"""
-
-    try:
-        with open('requirements.txt', 'w', encoding='utf-8') as f:
-            f.write(requirements_content)
-        print("📄 Файл requirements.txt создан/обновлен")
-    except Exception as e:
-        print(f"❌ Ошибка создания requirements.txt: {e}")
+    # try:
+    #     with open('requirements.txt', 'w', encoding='utf-8') as f:
+    #         f.write(requirements_content)
+    #     print("📄 Файл requirements.txt создан/обновлен")
+    # except Exception as e:
+    #     print(f"❌ Ошибка создания requirements.txt: {e}")
 
 
 
@@ -175,8 +175,8 @@ def startCheckLibs():
     # Проверяем и устанавливаем библиотеки
     success = check_and_install_imports()
 
-    # Создаем файл requirements.txt
-    create_requirements_file()
+    # # Создаем файл requirements.txt
+    # create_requirements_file()
 
     # Финальное сообщение
     if success:
