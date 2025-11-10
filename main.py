@@ -6,6 +6,9 @@ import webbrowser
 import time
 from FuncLib import open_browser_and_search, remove_keywords, close_tab, new_tab, go_to_tab, scroll_up, scroll_down, volume_down, volume_up, mute
 
+
+from СheckAndInstallLibs import startCheckLibs
+
 usedComandList = []
 comandPool = ('browser')
 comandsForStarter = []
@@ -201,4 +204,5 @@ class EnhancedVoiceRecognizer:
 
 
 if __name__ == "__main__":
-    VoiceActive("один")
+    if(startCheckLibs() == True):
+        VoiceActive("один")
