@@ -25,16 +25,16 @@ def is_app_running(app_path):
             try:
                 process_exe = process.info['exe']
                 if process_exe and os.path.abspath(process_exe).lower() == target_path:
-                    print(f"✅ Приложение запущено (PID: {process.info['pid']})")
+                    print(f"Приложение запущено (PID: {process.info['pid']})")
                     return True
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
 
-        print("❌ Приложение не запущено")
+        print("Приложение не запущено")
         return False
 
     except Exception as e:
-        print(f"❌ Ошибка проверки: {e}")
+        print(f"Ошибка проверки: {e}")
         return False
 
 def restore_browser_window():
@@ -77,11 +77,11 @@ def open_browser_and_search(browser_path: str, search_query: str):
     try:
         # Сохраняем исходное содержимое буфера обмена
         original_clipboard = pyperclip.paste()
-        # print(f"📋 Сохранено исходное содержимое буфера: '{original_clipboard}'")
+        # print(f"Сохранено исходное содержимое буфера: '{original_clipboard}'")
 
         # Копируем поисковый запрос в буфер обмена
         pyperclip.copy(search_query)
-        # print(f"✅ Поисковый запрос скопирован: '{search_query}'")
+        # print(f"Поисковый запрос скопирован: '{search_query}'")
 
         if(is_app_running(browser_path)):
             restore_browser_window()
@@ -92,7 +92,7 @@ def open_browser_and_search(browser_path: str, search_query: str):
                 webbrowser.open("http://yandex.ru")
             time.sleep(1)
         # Фокус на адресную строку
-        pyautogui.hotkey('ctrl', 'w')
+        pyautogui.hotkey('ctrl', 'l')
         time.sleep(0.5)
 
         # Вставляем текст из буфера обмена (Ctrl+V)
@@ -111,11 +111,11 @@ def open_browser_and_search(browser_path: str, search_query: str):
         # Восстановление исходного содержимого буфера обмена
         pyperclip.copy(original_clipboard)
 
-        print("✅ Поиск успешно выполнен!")
+        print("Поиск успешно выполнен!")
         return True
 
     except Exception as e:
-        print(f"❌ Ошибка: {e}")
+        print(f"Ошибка: {e}")
         # Пытаемся восстановить буфер в случае ошибки
         try:
             pyperclip.copy(original_clipboard)
@@ -189,7 +189,7 @@ def close_tab():
     user32.keybd_event(VK_W, 0, KEYEVENTF_KEYUP, 0)
     user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
     time.sleep(0.5)
-    print("❌ Вкладка закрыта")
+    print("Вкладка закрыта")
 
 def new_tab():
     """Новая вкладка"""
@@ -201,7 +201,7 @@ def new_tab():
     user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
 
     time.sleep(0.5)
-    print("➕ Новая вкладка создана")
+    print("Новая вкладка создана")
 
 
 def go_to_tab(tab_number, browser_path: str = " "):
@@ -228,19 +228,14 @@ def go_to_tab(tab_number, browser_path: str = " "):
     original_input = tab_number
 
     try:
-        # Если уже число
         if isinstance(tab_number, int):
             final_number = tab_number
 
-        # Если строка
         elif isinstance(tab_number, str):
             tab_number = tab_number.lower().strip()
-
-            # Пробуем извлечь цифру из строки
             if tab_number.isdigit():
                 final_number = int(tab_number)
             else:
-                # Ищем текстовое представление в словаре
                 found_number = None
                 for word, number in number_words.items():
                     if word in tab_number:
@@ -255,11 +250,11 @@ def go_to_tab(tab_number, browser_path: str = " "):
                     if digits:
                         final_number = int(digits)
                     else:
-                        print(f"❌ Не удалось распознать номер вкладки: '{original_input}'")
+                        print(f"Не удалось распознать номер вкладки: '{original_input}'")
                         return False
 
         else:
-            print(f"❌ Неподдерживаемый тип: {type(tab_number)}")
+            print(f"Неподдерживаемый тип: {type(tab_number)}")
             return False
 
         # Проверяем диапазон
@@ -267,14 +262,14 @@ def go_to_tab(tab_number, browser_path: str = " "):
             pyautogui.hotkey('ctrl', str(final_number))
             time.sleep(0.3)
             current_tab = final_number - 1
-            print(f"🎯 Перешли на {original_input} вкладку (#{final_number})")
+            print(f"Перешли на {original_input} вкладку (#{final_number})")
             return True
         else:
-            print(f"❌ Номер вкладки должен быть от 1 до 9, получено: {final_number}")
+            print(f"Номер вкладки должен быть от 1 до 9, получено: {final_number}")
             return False
 
     except Exception as e:
-        print(f"❌ Ошибка при переходе на вкладку '{original_input}': {e}")
+        print(f"Ошибка при переходе на вкладку '{original_input}': {e}")
         return False
 
 

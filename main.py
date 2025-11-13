@@ -7,8 +7,6 @@ import time
 from FuncLib import open_browser_and_search, remove_keywords, close_tab, new_tab, go_to_tab, scroll_up, scroll_down, volume_down, volume_up, mute
 
 
-from СheckAndInstallLibs import startCheckLibs
-
 usedComandList = []
 comandPool = ('browser')
 comandsForStarter = []
@@ -36,11 +34,11 @@ def Starter(text: list, browserUrl: str = ""):
     # Ищем подходящую команду
     for command in commands_config['commands']:
         if all(keyword in text_str for keyword in command['keywords']):
-            print(f"🎯 Выполняю: {command['name']}")
+            print(f"Выполняю: {command['name']}")
             execute_command(command, text_str, browserUrl, dotaName)
             return
 
-    print("❌ Команда не распознана")
+    print("Команда не распознана")
 
 
 def execute_command(command, text_str, browserUrl, dotaName):
@@ -82,9 +80,9 @@ def execute_command(command, text_str, browserUrl, dotaName):
         func = functions[command['function']]
         func(*args)
     except KeyError:
-        print(f"❌ Функция {command['function']} не найдена")
+        print(f"Функция {command['function']} не найдена")
     except Exception as e:
-        print(f"❌ Ошибка выполнения: {e}")
+        print(f"Ошибка выполнения: {e}")
 
 
 # Вспомогательные функции

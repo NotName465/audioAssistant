@@ -17,7 +17,6 @@ def download_nircmd():
 
 
 def set_volume(percent):
-    """Установка громкости через nircmd"""
     if not 0 <= percent <= 100:
         print("Ошибка: используйте значения от 0 до 100")
         return
@@ -31,4 +30,4 @@ def set_volume(percent):
 
 
 # Использование
-set_volume(50)  # Работает гарантированно!
+set_volume(50)
