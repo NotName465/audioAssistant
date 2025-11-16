@@ -1,7 +1,12 @@
 from tkinter import *
-import tksvg
-from pygame.examples.cursors import image
+from svglib.svglib import svg2rlg
+from reportlab.graphics import renderPM
+from PIL import Image, ImageTk
+import io
+from PIL import ImageTk
 from tksvg import SvgImage
+
+
 
 root = Tk()
 
@@ -64,10 +69,47 @@ Rus.pack(side=LEFT)
 
 
 
+def rotate_svg(svg_path, canvas, x=150, y=150, rpm=60):
+    """Компактная функция для вращения SVG"""
+    # Конвертируем SVG в PIL
+    drawing = svg2rlg(svg_path)
+    img_data = io.BytesIO()
+    renderPM.drawToFile(drawing, img_data, fmt="PNG",bg=BGcolorForSettings)
+    img_data.seek(0)
+    original = Image.open(img_data)
+
+    # Создаем изображение
+    photo = ImageTk.PhotoImage(original)
+    img_id = canvas.create_image(x, y, image=photo)
+    canvas.image = photo
+
+    def update_rotation(angle=0):
+        angle = (angle + rpm * 0.1) % 360
+        rotated = original.rotate(angle)
+        new_photo = ImageTk.PhotoImage(rotated)
+        canvas.itemconfig(img_id, image=new_photo)
+        canvas.image = new_photo
+        canvas.after(16, lambda: update_rotation(angle))
+
+    update_rotation()
+
+
+# Использование
+
+canvas = Canvas(root, width=300, height=300, bg=BGcolorForSettings)
+canvas.pack()
+
+rotate_svg("IMGS/GEAR.svg", canvas, rpm=45)
+
+
+
+
 def move_window(event):
     root.geometry(f"+{event.x_root}+{event.y_root}")
 
 title_bar.bind('<B1-Motion>', move_window)
+
+
 
 
 
@@ -86,5 +128,7 @@ def center_window(window, width=None, height=None):
     y = (screen_height - height) // 2
 
     window.geometry(f"{width}x{height}+{x}+{y}")
+
+
 center_window(root)
 root.mainloop()
