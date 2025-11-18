@@ -1,151 +1,134 @@
-from tkinter import *
-from tkinter import ttk
+import customtkinter as ctk
+from tksvg import SvgImage
 
-root = Tk()
+# Настройка внешнего вида
+ctk.set_appearance_mode("dark")  # Темная тема
+ctk.set_default_color_theme("blue")  # Цветовая тема
 
-root['bg'] = "#2b2b2b"  # Тёмный фон как у многих аудио-контроллеров
-root.title = "Rusar Audio Controller"
-root.geometry('400x500')
-root.resizable(width=False, height=False)
+# Создание главного окна
+root = ctk.CTk()
+root.configure(fg_color="#783518")  # Фон окна
+root.title("Нарды")
+root.geometry('400x600')
+root.resizable(False, False)
 
-# Убрать рамку окна
-root.overrideredirect(True)
+# Цвета
+BGColorForFirstButtoms = "#1A1A1A"
+BGcolorForSettings = "#262626"
 
-# Создаем верхнюю панель
-title_bar = Frame(root, bg='#1a1a1a', height=30)
-title_bar.pack(fill=X)
-title_bar.pack_propagate(False)
+BlackGear = SvgImage(file="IMGS/GEAR.svg")
+WhiteGear = SvgImage(file="IMGS/whiteGear.svg")
+comandList = SvgImage(file="IMGS/comList.svg")
+BlackGear2 = SvgImage(file="IMGS/blackGear2.svg")
 
-# Заголовок в верхней панели
-title_label = Label(title_bar, text="Rusar Audio Controller",
-                   bg='#1a1a1a', fg='#ffffff', font=("Arial", 10))
-title_label.pack(side=LEFT, padx=10)
+
+# В CustomTkinter нет overrideredirect, но можно сделать кастомную рамку
+# root.overrideredirect(False) - не нужно в CTk
+
+# Верхняя панель заголовка
+title_bar = ctk.CTkFrame(root, fg_color=BGColorForFirstButtoms, height=30, corner_radius=0)
+title_bar.pack(fill="x", padx=0, pady=0)
+
+# Контейнер для кнопок управления окном
+buttons_frame = ctk.CTkFrame(title_bar, fg_color=BGColorForFirstButtoms, height=30, corner_radius=0)
+buttons_frame.pack(side="right", padx=0)
 
 # Кнопка закрытия
-close_btn = Button(title_bar, text="×", command=root.destroy,
-                  bg='#1a1a1a', fg='#ffffff', border=0,
-                  font=("Arial", 16), cursor="hand2")
-close_btn.pack(side=RIGHT, padx=10)
+close_btn = ctk.CTkButton(buttons_frame,
+                         text="X",
+                         command=root.destroy,
+                         fg_color=BGColorForFirstButtoms,
+                         hover_color="#FF4444",
+                         width=30,
+                         height=30,
+                         corner_radius=0)
+close_btn.pack(side="right", padx=1)
 
-# Функции для перемещения окна
-start_x, start_y = 0, 0
+# Кнопка развернуть/свернуть
+full_cr_btm = ctk.CTkButton(buttons_frame,
+                           text="□",
+                           fg_color=BGColorForFirstButtoms,
+                           hover_color="#444444",
+                           width=30,
+                           height=30,
+                           corner_radius=0)
+full_cr_btm.pack(side="right", padx=1)
 
-def start_move(event):
-    global start_x, start_y
-    start_x = event.x_root
-    start_y = event.y_root
+# Кнопка свернуть
+minimize_btn = ctk.CTkButton(buttons_frame,
+                            text="—",
+                            fg_color=BGColorForFirstButtoms,
+                            hover_color="#444444",
+                            width=30,
+                            height=30,
+                            corner_radius=0)
+minimize_btn.pack(side="right", padx=1)
 
-def move_window(event):
-    global start_x, start_y
-    delta_x = event.x_root - start_x
-    delta_y = event.y_root - start_y
-    x = root.winfo_x() + delta_x
-    y = root.winfo_y() + delta_y
-    root.geometry(f"+{x}+{y}")
-    start_x = event.x_root
-    start_y = event.y_root
 
-title_bar.bind('<Button-1>', start_move)
-title_bar.bind('<B1-Motion>', move_window)
+NameProject = ctk.CTkLabel(title_bar,
+                          text="AudioAssistant",
+                          text_color="white",
+                          fg_color=BGColorForFirstButtoms,
+                          font=ctk.CTkFont(size=12, weight="bold"))
+NameProject.pack(side="left", padx=10)
 
-# Основной контент
-main_frame = Frame(root, bg='#2b2b2b')
-main_frame.pack(fill=BOTH, expand=True, padx=20, pady=20)
 
-# Секция "Макрофон"
-mic_frame = Frame(main_frame, bg='#2b2b2b')
-mic_frame.pack(fill=X, pady=(0, 20))
+SettingsBar = ctk.CTkFrame(root,
+                          fg_color=BGcolorForSettings,
+                          height=40,
+                          corner_radius=0)
+SettingsBar.pack(fill="x", padx=0, pady=0)
 
-Label(mic_frame, text="Макрофон", bg='#2b2b2b', fg='#ffffff',
-      font=("Arial", 14, "bold")).pack(anchor=W)
+# Контейнер для кнопок настроек
+settings_buttons_frame = ctk.CTkFrame(SettingsBar,
+                                     fg_color=BGcolorForSettings,
+                                     height=40,
+                                     corner_radius=0)
+settings_buttons_frame.pack(side="right", padx=0)
 
-Label(mic_frame, text="Макрофон гарантуры\n(Rusar Audio Controller)",
-      bg='#2b2b2b', fg='#cccccc', font=("Arial", 10),
-      justify=LEFT).pack(anchor=W, pady=(5, 0))
 
-# Секция "Нейросети"
-ai_frame = Frame(main_frame, bg='#2b2b2b')
-ai_frame.pack(fill=X, pady=(0, 20))
+SetBut = ctk.CTkButton(settings_buttons_frame,
+                      text="Настройки",
+                      fg_color=BGcolorForSettings,
+                      hover_color="#444444",
+                      text_color="white",
+                      height=30,
+                      corner_radius=2,
+                      image = BlackGear2,
+                      )
+SetBut.pack(side="right", padx=2)
 
-Label(ai_frame, text="Нейросети", bg='#2b2b2b', fg='#ffffff',
-      font=("Arial", 14, "bold")).pack(anchor=W)
 
-# Контейнер для кнопок нейросетей
-ai_buttons_frame = Frame(ai_frame, bg='#2b2b2b')
-ai_buttons_frame.pack(fill=X, pady=(10, 0))
+ComList = ctk.CTkButton(settings_buttons_frame,
+                       text="Команды",
+                       fg_color=BGcolorForSettings,
+                       hover_color="#444444",
+                       text_color="white",
+                       height=30,
+                       corner_radius=2,
+                       image = comandList,)
+ComList.pack(side="right", padx=0)
 
-# Кнопка "Распознать"
-recognize_btn = Label(ai_buttons_frame, text="Распознать",
-                     bg='#404040', fg='#ffffff',
-                     font=("Arial", 10, "bold"),
-                     padx=20, pady=10, cursor="hand2")
-recognize_btn.pack(side=LEFT, padx=(0, 10))
+Rus = ctk.CTkLabel(SettingsBar,
+                  text="Сделано в России",
+                  text_color="white",
+                  fg_color=BGcolorForSettings,
+                  font=ctk.CTkFont(size=10))
+Rus.pack(side="left", padx=10)
 
-# Кнопка "Упаковать"
-pack_btn = Label(ai_buttons_frame, text="Упаковать",
-                bg='#404040', fg='#ffffff',
-                font=("Arial", 10, "bold"),
-                padx=20, pady=10, cursor="hand2")
-pack_btn.pack(side=LEFT)
+# Основная область контента (можно добавить ваш контент здесь)
+content_frame = ctk.CTkFrame(root,
+                            fg_color="#783518",
+                            corner_radius=0)
+content_frame.pack(fill="both", expand=True, padx=0, pady=0)
 
-# Секция "Ресурсы"
-resources_frame = Frame(main_frame, bg='#2b2b2b')
-resources_frame.pack(fill=X, pady=(0, 20))
+# Пример добавления контента
+# welcome_label = ctk.CTkLabel(content_frame,
+#                             text="Добро пожаловать в AudioAssistant!",
+#                             text_color="white",
+#                             font=ctk.CTkFont(size=16, weight="bold"))
+# welcome_label.pack(pady=50)
+# Создание выдвижной панели настроек (изначально скрыта за левым краем)
 
-Label(resources_frame, text="Ресурсы", bg='#2b2b2b', fg='#ffffff',
-      font=("Arial", 14, "bold")).pack(anchor=W)
-
-# Индикатор RAM
-ram_frame = Frame(resources_frame, bg='#2b2b2b')
-ram_frame.pack(fill=X, pady=(10, 0))
-
-Label(ram_frame, text="RAM", bg='#2b2b2b', fg='#cccccc',
-      font=("Arial", 10)).pack(side=LEFT)
-
-# Прогресс-бар для RAM
-ram_progress = ttk.Progressbar(ram_frame, orient=HORIZONTAL,
-                              length=200, mode='determinate',
-                              style="Custom.Horizontal.TProgressbar")
-ram_progress.pack(side=LEFT, padx=(10, 5))
-ram_progress['value'] = 37  # 0.37mb из условного максимума
-
-ram_label = Label(ram_frame, text="0.37mb", bg='#2b2b2b', fg='#cccccc',
-                 font=("Arial", 9))
-ram_label.pack(side=LEFT, padx=(5, 0))
-
-# Нижняя панель с информацией
-bottom_frame = Frame(main_frame, bg='#2b2b2b')
-bottom_frame.pack(side=BOTTOM, fill=X, pady=(20, 0))
-
-# Информация об авторских правах
-copyright_text = """© 2023. Автор проекта: Abraham Tupakov
-Github репозиторий проекта."""
-
-Label(bottom_frame, text=copyright_text, bg='#2b2b2b', fg='#888888',
-      font=("Arial", 8), justify=CENTER).pack(pady=10)
-
-# Стиль для прогресс-бара
-style = ttk.Style()
-style.theme_use('clam')
-style.configure("Custom.Horizontal.TProgressbar",
-                troughcolor='#404040',
-                background='#4CAF50',
-                bordercolor='#2b2b2b',
-                lightcolor='#4CAF50',
-                darkcolor='#4CAF50')
-
-# Функция для центрирования окна
-def center_window(window, width=None, height=None):
-    window.update_idletasks()
-    if width is None or height is None:
-        width = window.winfo_width()
-        height = window.winfo_height()
-    screen_width = window.winfo_screenwidth()
-    screen_height = window.winfo_screenheight()
-    x = (screen_width - width) // 2
-    y = (screen_height - height) // 2
-    window.geometry(f"{width}x{height}+{x}+{y}")
-
-center_window(root)
 
 root.mainloop()
