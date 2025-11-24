@@ -1,80 +1,148 @@
 {
   "commands": [
     {
+      "nameForGUI": "Открыть браузер",
       "name": "open_browser",
-      "keywords": ["открой", "браузер"],
+      "keywords": [
+        "открой",
+        "браузер"
+      ],
       "function": "openBrowser",
-      "args": ["browserUrl"]
+      "args": [
+        "browserUrl"
+      ]
     },
     {
+      "nameForGUI": "Закрыть браузер",
       "name": "close_browser",
-      "keywords": ["закрой", "браузер"],
+      "keywords": [
+        "закрой",
+        "браузер"
+      ],
       "function": "closeBrowser",
-      "args": ["browserUrl"]
+      "args": [
+        "browserUrl"
+      ]
     },
     {
+      "nameForGUI": "Открыть Доту",
       "name": "open_dota",
-      "keywords": ["открой", "доту"],
+      "keywords": [
+        "открой",
+        "доту"
+      ],
       "function": "openDota",
       "args": []
     },
     {
+      "nameForGUI": "Закрыть Доту",
       "name": "close_dota",
-      "keywords": ["закрой", "доту"],
+      "keywords": [
+        "закрой",
+        "доту"
+      ],
       "function": "closeDota",
       "args": []
     },
     {
+      "nameForGUI": "Поиск в интернете",
       "name": "search_web",
-      "keywords": ["найди", "в", "интернете"],
+      "keywords": [
+        "найди",
+        "в",
+        "интернете"
+      ],
       "function": "open_browser_and_search",
-      "args": ["browserUrl", "remove_keywords(text_str)"]
+      "args": [
+        "browserUrl",
+        "remove_keywords(text_str)"
+      ]
     },
     {
-      "name": "close_tab",
-      "keywords": ["закрой", "вкладку"],
-      "function": "close_tab",
-      "args": []
-    },
-    {
+      "nameForGUI": "Создать вкладку браузера",
       "name": "new_tab",
-      "keywords": ["создай", "вкладку"],
+      "keywords": [
+        "создай",
+        "вкладку"
+      ],
       "function": "new_tab",
       "args": []
     },
     {
+      "nameForGUI": "Закрыть вкладку браузера",
+      "name": "close_tab",
+      "keywords": [
+        "закрой",
+        "вкладку"
+      ],
+      "function": "close_tab",
+      "args": []
+    },
+    {
+      "nameForGUI": "Открыть вкладку браузера",
       "name": "go_to_tab",
-      "keywords": ["открой", "вкладку"],
+      "keywords": [
+        "открой",
+        "вкладку"
+      ],
       "function": "go_to_tab",
-      "args": ["remove_keywords(text_str)"]
-    },{
+      "args": [
+        "remove_keywords(text_str)"
+      ]
+    },
+    {
+      "nameForGUI": "Прокрутка колёсиком мыши вниз",
       "name": "scroll_down",
-      "keywords": ["прокрути", "вниз"],
+      "keywords": [
+        "прокрути",
+        "вниз"
+      ],
       "function": "scroll_down",
       "args": []
-    },{
+    },
+    {
+      "nameForGUI": "Прокрутка колёсиком мыши вверх",
       "name": "scroll_up",
-      "keywords": ["прокрути", "вверх"],
+      "keywords": [
+        "прокрути",
+        "вверх"
+      ],
       "function": "scroll_up",
       "args": []
-    },{
+    },
+    {
+      "nameForGUI": "Включить звук",
       "name": "mute",
-      "keywords": ["выключи", "звук"],
+      "keywords": [
+        "включи",
+        "звук"
+      ],
       "function": "mute",
       "args": []
-    },{
+    },
+    {
+      "nameForGUI": "Выключить звук",
       "name": "mute",
-      "keywords": ["включи", "звук"],
+      "keywords": [
+        "выключи",
+        "звук"
+      ],
       "function": "mute",
       "args": []
-    },{
+    },
+    {
+      "nameForGUI": "Сделать звук громче",
       "name": "volume_up",
       "keywords": ["громче"],
       "function": "volume_up",
       "args": []
-    },{
-      "name": "volume_downp",
-      "keywords": ["тише"],
+    },
+    {
+      "nameForGUI": "Сделать звук тише",
+      "name": "volume_down",
+      "keywords": [
+        "тише"
+      ],
       "function": "volume_down",
       "args": []
     }
