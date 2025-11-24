@@ -6,9 +6,6 @@ import webbrowser
 import time
 from FuncLib import open_browser_and_search, remove_keywords, close_tab, new_tab, go_to_tab, scroll_up, scroll_down, volume_down, volume_up, mute
 
-usedComandList = []
-comandPool = ('browser')
-comandsForStarter = []
 def openBrowser(browserUrl: str = ""):
     try:
         os.startfile(browserUrl)
