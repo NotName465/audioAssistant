@@ -10,7 +10,8 @@
       "function": "openBrowser",
       "args": [
         "browserUrl"
-      ]
+      ],
+      "protected": true
     },
     {
       "nameForGUI": "Закрыть браузер",
@@ -22,7 +23,8 @@
       "function": "closeBrowser",
       "args": [
         "browserUrl"
-      ]
+      ],
+      "protected": true
     },
     {
       "nameForGUI": "Открыть Доту",
@@ -32,7 +34,8 @@
         "доту"
       ],
       "function": "openDota",
-      "args": []
+      "args": [],
+      "protected": true
     },
     {
       "nameForGUI": "Закрыть Доту",
@@ -42,7 +45,8 @@
         "доту"
       ],
       "function": "closeDota",
-      "args": []
+      "args": [],
+      "protected": true
     },
     {
       "nameForGUI": "Поиск в интернете",
@@ -56,7 +60,8 @@
       "args": [
         "browserUrl",
         "remove_keywords(text_str)"
-      ]
+      ],
+      "protected": true
     },
     {
       "nameForGUI": "Создать вкладку браузера",
@@ -66,7 +71,8 @@
         "вкладку"
       ],
       "function": "new_tab",
-      "args": []
+      "args": [],
+      "protected": true
     },
     {
       "nameForGUI": "Закрыть вкладку браузера",
@@ -76,7 +82,8 @@
         "вкладку"
       ],
       "function": "close_tab",
-      "args": []
+      "args": [],
+      "protected": true
     },
     {
       "nameForGUI": "Открыть вкладку браузера",
@@ -88,7 +95,8 @@
       "function": "go_to_tab",
       "args": [
         "remove_keywords(text_str)"
-      ]
+      ],
+      "protected": true
     },
     {
       "nameForGUI": "Прокрутка колёсиком мыши вниз",
@@ -98,7 +106,8 @@
         "вниз"
       ],
       "function": "scroll_down",
-      "args": []
+      "args": [],
+      "protected": true
     },
     {
       "nameForGUI": "Прокрутка колёсиком мыши вверх",
@@ -108,7 +117,8 @@
         "вверх"
       ],
       "function": "scroll_up",
-      "args": []
+      "args": [],
+      "protected": true
     },
     {
       "nameForGUI": "Включить звук",
@@ -118,7 +128,8 @@
         "звук"
       ],
       "function": "mute",
-      "args": []
+      "args": [],
+      "protected": true
     },
     {
       "nameForGUI": "Выключить звук",
@@ -128,14 +139,18 @@
         "звук"
       ],
       "function": "mute",
-      "args": []
+      "args": [],
+      "protected": true
     },
     {
       "nameForGUI": "Сделать звук громче",
       "name": "volume_up",
-      "keywords": ["громче"],
+      "keywords": [
+        "громче"
+      ],
       "function": "volume_up",
-      "args": []
+      "args": [],
+      "protected": true
     },
     {
       "nameForGUI": "Сделать звук тише",
@@ -144,7 +159,8 @@
         "тише"
       ],
       "function": "volume_down",
-      "args": []
+      "args": [],
+      "protected": true
     }
   ]
 }

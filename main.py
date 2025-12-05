@@ -4,7 +4,7 @@ import json
 import os
 import webbrowser
 import time
-from FuncLib import open_browser_and_search, remove_keywords, close_tab, new_tab, go_to_tab, scroll_up, scroll_down, volume_down, volume_up, mute
+from tester4 import open_browser_and_search, remove_keywords, close_tab, new_tab, go_to_tab, scroll_up, scroll_down, volume_down, volume_up, mute
 
 def openBrowser(browserUrl: str = ""):
     try:
