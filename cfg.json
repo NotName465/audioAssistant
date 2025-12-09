@@ -6,5 +6,13 @@
   "Путь Браузера": {
     "value": "r\"C:\\Users\\user\\AppData\\Local\\Programs\\Opera GX\\opera.exe\"",
     "protected": true
+  },
+  "Перемещение курсора(в пикселях)": {
+    "value": "100",
+    "protected": true
+  },
+  "Пролистывание страницы(от 1 до 5)": {
+    "value": "3",
+    "protected": true
   }
 }

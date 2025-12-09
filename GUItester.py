@@ -5,7 +5,6 @@ import tkinter as tk
 import soundcard as sc
 import subprocess
 import threading
-import time
 import sys
 import io
 import pyperclip
@@ -230,7 +229,7 @@ def run_assistant():
     try:
         # Проверяем существование main.py
         if not os.path.exists("main.py"):
-            update_status("error", "Ошибка: main.py не найден!")
+            update_status("stopped", "Ошибка: main.py не найден!")
             console_text.insert("end", "❌ ОШИБКА: файл main.py не найден!\n")
             return
 
@@ -269,26 +268,25 @@ def run_assistant():
         is_assistant_running = False
         waiting_for_keyword = False
 
-        if return_code == 0:
+        if return_code == 0 or return_code == 1:  # Нормальное завершение или нажатие Ctrl+C
             # Нормальное завершение
             assistant_status = "stopped"
             update_status("stopped", "Статус: Остановлен")
-            console_text.insert("end", "⏹️ Audio Assistant завершил работу\n")
+            console_text.insert("end", "⏹️ Работа остановлена\n")  # ИЗМЕНЕНО: сообщение об остановке
         else:
             # Ошибка при завершении
-            assistant_status = "error"
-            update_status("error", "Ошибка: Перезапустите")
-            console_text.insert("end", f"❌ Audio Assistant завершился с ошибкой (код: {return_code})\n")
-            console_text.insert("end", "🔄 Готов к перезапуску\n")
+            assistant_status = "stopped"  # ИЗМЕНЕНО: вместо "error" используем "stopped"
+            update_status("stopped", "Статус: Остановлен")
+            console_text.insert("end", f"⏹️ Работа остановлена (код завершения: {return_code})\n")
 
     except Exception as e:
         is_assistant_running = False
         waiting_for_keyword = False
-        assistant_status = "error"
-        error_msg = f"❌ Ошибка: {str(e)}\n"
-        update_status("error", f"Ошибка: {str(e)}")
+        assistant_status = "stopped"  # ИЗМЕНЕНО: вместо "error" используем "stopped"
+        error_msg = f"⏹️ Работа остановлена: {str(e)}\n"  # ИЗМЕНЕНО: другое сообщение
+        update_status("stopped", f"Статус: Остановлен")
         console_text.insert("end", error_msg)
-        console_text.insert("end", "🔄 Готов к перезапуску\n")
+        console_text.insert("end", "🔄 Готов к запуску\n")
 
 
 def update_status(status, message):
@@ -303,9 +301,9 @@ def on_circular_button_click():
         start_assistant()
     elif assistant_status == "running":
         stop_assistant()
-    elif assistant_status == "error":
-        # При ошибке кнопка работает как перезапуск
-        restart_assistant()
+    else:  # Для статусов starting, stopping или других
+        # При любом другом статусе просто останавливаем
+        stop_assistant()
 
 
 def handle_status_change(new_status):
@@ -359,6 +357,46 @@ def save_cfg_variables(variables):
 
     except Exception as e:
         print(f"Ошибка сохранения cfg.json: {e}")
+        return False
+
+
+# Функции для работы с config.json (голос)
+def load_voice_config():
+    """Загружает конфигурацию голоса из config.json"""
+    try:
+        config_path = "config.json"
+        default_config = {
+            "selected_microphone": "",
+            "selected_voice": 1  # По умолчанию голос Байа
+        }
+
+        if os.path.exists(config_path):
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                for key in default_config:
+                    if key not in config:
+                        config[key] = default_config[key]
+                return config
+        else:
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(default_config, f, ensure_ascii=False, indent=2)
+            print(f"Создан файл конфигурации голоса: {config_path}")
+            return default_config
+    except Exception as e:
+        print(f"Ошибка загрузки конфигурации голоса: {e}")
+        return default_config
+
+
+def save_voice_config(config):
+    """Сохраняет конфигурацию голоса в config.json"""
+    try:
+        config_path = "config.json"
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+        print("Конфигурация голоса сохранена")
+        return True
+    except Exception as e:
+        print(f"Ошибка сохранения конфигурации голоса: {e}")
         return False
 
 
@@ -870,6 +908,81 @@ def create_settings_content():
                                         font=ctk.CTkFont(size=24, weight="bold"))
     main_title.pack(pady=(20, 30))
 
+    # Секция выбора голоса
+    voice_section = ctk.CTkFrame(settings_content, fg_color="#333333")
+    voice_section.pack(fill="x", padx=20, pady=(0, 20))
+
+    voice_label = create_multiline_label(voice_section,
+                                         text="Выбор голоса помощника",
+                                         max_lines=2,
+                                         text_color="white",
+                                         font=ctk.CTkFont(size=18, weight="bold"))
+    voice_label.pack(anchor="w", padx=15, pady=10)
+
+    # Загружаем текущую конфигурацию голоса
+    voice_config = load_voice_config()
+    selected_voice = voice_config.get("selected_voice", 1)
+
+    # Голоса
+    voices = [
+        {"name": "Айдар", "id": 0, "description": "Мужской голос"},
+        {"name": "Байа", "id": 1, "description": "Женский голос"},
+        {"name": "Ксения", "id": 2, "description": "Женский голос"},
+        {"name": "Хениа", "id": 3, "description": "Женский голос"}
+    ]
+
+    # Переменная для хранения выбранного голоса
+    current_selected_voice = tk.IntVar(value=selected_voice)
+
+    def save_voice_selection():
+        """Сохраняет выбранный голос в config.json"""
+        selected_voice_id = current_selected_voice.get()
+        voice_config["selected_voice"] = selected_voice_id
+        if save_voice_config(voice_config):
+            # Показываем уведомление об успехе
+            success_label = create_multiline_label(voice_section,
+                                                   f"✓ Голос '{voices[selected_voice_id]['name']}' сохранен!",
+                                                   max_lines=2,
+                                                   text_color="#00ff00",
+                                                   font=ctk.CTkFont(size=12, weight="bold"))
+            success_label.pack(pady=5)
+            root.after(2000, success_label.destroy)
+
+    # Контейнер для голосов
+    voices_container = ctk.CTkFrame(voice_section, fg_color="#444444")
+    voices_container.pack(fill="x", padx=15, pady=(0, 15))
+
+    for voice in voices:
+        voice_frame = ctk.CTkFrame(voices_container, fg_color="transparent")
+        voice_frame.pack(fill="x", pady=5, padx=10)
+
+        # Радиокнопка для выбора голоса
+        radio_btn = ctk.CTkRadioButton(voice_frame,
+                                       text=f"{voice['name']} ({voice['description']})",
+                                       variable=current_selected_voice,
+                                       value=voice['id'],
+                                       text_color="white",
+                                       fg_color="#4682B4",
+                                       hover_color="#5A9BD5",
+                                       command=save_voice_selection)
+        radio_btn.pack(side="left")
+
+        # Добавляем метку с номером
+        voice_id_label = ctk.CTkLabel(voice_frame,
+                                      text=f"ID: {voice['id']}",
+                                      text_color="#888888",
+                                      font=ctk.CTkFont(size=10))
+        voice_id_label.pack(side="right", padx=(10, 0))
+
+    # Кнопка для сохранения выбора голоса
+    save_voice_btn = ctk.CTkButton(voice_section,
+                                   text="Сохранить настройки голоса",
+                                   command=save_voice_selection,
+                                   fg_color="#00aa00",
+                                   hover_color="#008800",
+                                   height=30)
+    save_voice_btn.pack(pady=(10, 15), padx=15)
+
     # Секция создания пользовательских функций
     functions_frame = ctk.CTkFrame(settings_content, fg_color="#333333")
     functions_frame.pack(fill="x", padx=20, pady=(0, 20))
@@ -1280,8 +1393,8 @@ def create_settings_content():
     ctrl_v_btn = ctk.CTkButton(functions_clipboard_frame,
                                text="Ctrl + V",
                                command=paste_to_selected_function_field,
-                               fg_color="#333333",  # Цвет фона меню настроек
-                               hover_color="#444444",
+                               fg_color="#444444",  # ИЗМЕНЕНО: такой же цвет как у Del
+                               hover_color="#555555",  # ИЗМЕНЕНО: такой же hover цвет как у Del
                                width=80,
                                height=25)
     ctrl_v_btn.pack(side="left", padx=(0, 5))
@@ -1296,7 +1409,7 @@ def create_settings_content():
     del_btn = ctk.CTkButton(functions_clipboard_frame,
                             text="Del",
                             command=clear_selected_field,
-                            fg_color="#333333",
+                            fg_color="#444444",
                             hover_color="#555555",
                             width=50,
                             height=25)
@@ -1642,8 +1755,8 @@ def create_settings_content():
             var_ctrl_v_btn = ctk.CTkButton(variables_clipboard_frame,
                                            text="Ctrl + V",
                                            command=paste_to_selected_variable_field,
-                                           fg_color="#333333",  # Теперь такой же цвет как в первой секции
-                                           hover_color="#444444",
+                                           fg_color="#444444",  # ИЗМЕНЕНО: такой же цвет
+                                           hover_color="#555555",  # ИЗМЕНЕНО: такой же hover цвет
                                            width=80,
                                            height=25)
             var_ctrl_v_btn.pack(side="left", padx=(0, 5))
@@ -1658,7 +1771,7 @@ def create_settings_content():
             var_del_btn = ctk.CTkButton(variables_clipboard_frame,
                                         text="Del",
                                         command=clear_selected_variable_field,
-                                        fg_color="#333333",  # Теперь такой же цвет как в первой секции
+                                        fg_color="#444444",
                                         hover_color="#555555",
                                         width=50,
                                         height=25)
@@ -1687,7 +1800,7 @@ def create_settings_content():
     audio_frame.pack(fill="x", padx=20, pady=(0, 20))
 
     audio_label = create_multiline_label(audio_frame,
-                                         text="Аудио устройства",
+                                         text="Устройства ввода",
                                          max_lines=2,
                                          text_color="white",
                                          font=ctk.CTkFont(size=18, weight="bold"))
@@ -1909,7 +2022,7 @@ def create_commands_content():
 
             print(f"Команда {command_name} удалена")
         except Exception as e:
-            print(f"Ошибка удаления команды: {e}")
+            print(f"Ошибка удаления команда: {e}")
 
     # Функция для обновления счетчика команд
     def update_commands_count():

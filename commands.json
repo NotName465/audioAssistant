@@ -121,20 +121,10 @@
       "protected": true
     },
     {
-      "nameForGUI": "Включить звук",
+      "nameForGUI": "Включить/выключить звук",
       "name": "mute",
       "keywords": [
         "включи",
-        "звук"
-      ],
-      "function": "mute",
-      "args": [],
-      "protected": true
-    },
-    {
-      "nameForGUI": "Выключить звук",
-      "name": "mute",
-      "keywords": [
         "выключи",
         "звук"
       ],
@@ -159,6 +149,91 @@
         "тише"
       ],
       "function": "volume_down",
+      "args": [],
+      "protected": true
+    },
+    {
+      "nameForGUI": "Переместить мышь вправо",
+      "name": "right",
+      "keywords": [
+        "вправо",
+        "на"
+      ],
+      "function": "right",
+      "args": [
+        "extract_number(text_list)"
+      ],
+      "protected": true
+    },
+    {
+      "nameForGUI": "Переместить мышь влево",
+      "name": "left",
+      "keywords": [
+        "влево",
+        "на"
+      ],
+      "function": "left",
+      "args": [
+        "extract_number(text_list)"
+      ],
+      "protected": true
+    },
+    {
+      "nameForGUI": "Переместить мышь вниз",
+      "name": "down",
+      "keywords": [
+        "вниз",
+        "на"
+      ],
+      "function": "down",
+      "args": [
+        "extract_number(text_list)"
+      ],
+      "protected": true
+    },
+    {
+      "nameForGUI": "Переместить мышь вверх",
+      "name": "up",
+      "keywords": [
+        "вверх",
+        "на"
+      ],
+      "function": "up",
+      "args": [
+        "extract_number(text_list)"
+      ],
+      "protected": true
+    },
+    {
+      "nameForGUI": "Левый клик мышкой",
+      "name": "left_click",
+      "keywords": [
+        "левый",
+        "клик"
+      ],
+      "function": "left_click",
+      "args": [],
+      "protected": true
+    },
+    {
+      "nameForGUI": "Правый клик мышкой",
+      "name": "right_click",
+      "keywords": [
+        "правый",
+        "клик"
+      ],
+      "function": "right_click",
+      "args": [],
+      "protected": true
+    },
+    {
+      "nameForGUI": "Двойной клик мышкой",
+      "name": "double_click",
+      "keywords": [
+        "двойной",
+        "клик"
+      ],
+      "function": "double_click",
       "args": [],
       "protected": true
     }
