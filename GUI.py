@@ -989,7 +989,7 @@ def create_settings_content():
     functions_frame.pack(fill="x", padx=20, pady=(0, 20))
 
     functions_label = create_multiline_label(functions_frame,
-                                             text="Создание пользовательской функции",
+                                             text="Создание \n пользовательской функции",
                                              max_lines=2,
                                              text_color="white",
                                              font=ctk.CTkFont(size=18, weight="bold"))
