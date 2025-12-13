@@ -156,8 +156,7 @@
       "nameForGUI": "Переместить мышь вправо",
       "name": "right",
       "keywords": [
-        "вправо",
-        "на"
+        "вправо"
       ],
       "function": "right",
       "args": [
@@ -169,8 +168,7 @@
       "nameForGUI": "Переместить мышь влево",
       "name": "left",
       "keywords": [
-        "влево",
-        "на"
+        "влево"
       ],
       "function": "left",
       "args": [
@@ -182,8 +180,7 @@
       "nameForGUI": "Переместить мышь вниз",
       "name": "down",
       "keywords": [
-        "вниз",
-        "на"
+        "вниз"
       ],
       "function": "down",
       "args": [
@@ -195,8 +192,7 @@
       "nameForGUI": "Переместить мышь вверх",
       "name": "up",
       "keywords": [
-        "вверх",
-        "на"
+        "вверх"
       ],
       "function": "up",
       "args": [

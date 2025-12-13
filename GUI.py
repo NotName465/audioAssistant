@@ -1,17 +1,16 @@
 import customtkinter as ctk
 import json
-import os
 import tkinter as tk
 import soundcard as sc
 import subprocess
 import threading
-import sys
 import io
 import pyperclip
 import sys
 import os
+import main, FuncLib
 
-# Добавляем путь к FuncLib в sys.path для импорта
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 try:
@@ -183,6 +182,9 @@ class ConsoleOutput(io.StringIO):
 
     def flush(self):
         self.original_stdout.flush()
+
+
+
 
 
 # Функция для тестирования голоса
@@ -364,6 +366,9 @@ def run_assistant():
         update_status("stopped", f"Статус: Остановлен")
         console_text.insert("end", error_msg)
         console_text.insert("end", "🔄 Готов к запуску\n")
+
+
+
 
 
 def update_status(status, message):

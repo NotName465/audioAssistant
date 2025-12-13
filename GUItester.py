@@ -1,13 +1,27 @@
 import customtkinter as ctk
 import json
-import os
 import tkinter as tk
 import soundcard as sc
 import subprocess
 import threading
-import sys
 import io
 import pyperclip
+import sys
+import os
+import main, FuncLib
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+try:
+    from FuncLib import speak
+
+    USE_FUNCLIB_SPEAK = True
+except ImportError as e:
+    print(f"Ошибка импорта FuncLib: {e}")
+    USE_FUNCLIB_SPEAK = False
+    # Если нет FuncLib, будем использовать fallback
+    from gtts import gTTS
+    import pygame
 
 # Настройка внешнего вида
 ctk.set_appearance_mode("dark")
@@ -37,6 +51,10 @@ assistant_thread = None
 is_assistant_running = False
 assistant_status = "stopped"  # stopped, starting, running, stopping
 waiting_for_keyword = False
+
+# Глобальные переменные для хранения виджетов
+commands_frame_widget = None
+variables_display_frame_widget = None
 
 # Создание выдвижных панелей - ОБЕ ВО ВЕСЬ ЭКРАН
 settings_panel = ctk.CTkFrame(root,
@@ -169,6 +187,88 @@ class ConsoleOutput(io.StringIO):
         self.original_stdout.flush()
 
 
+def suggest_variable_creation():
+    """Подсказка создания переменной"""
+    print("Подсказка: используйте 'set имя_переменной = значение' для создания переменной.")
+
+def delete_command(command_index):
+    """Удаляет команду по индексу"""
+    global commands_list
+    if 0 <= command_index < len(commands_list):
+        commands_list.pop(command_index)
+        update_commands_count()
+    else:
+        print("Ошибка: неверный индекс команды.")
+
+def update_commands_count():
+    """Обновляет счётчик команд (если есть соответствующий UI-элемент)"""
+    global commands_list
+    # Пример для tkinter:
+    # label_count.config(text=f"Команд: {len(commands_list)}")
+    print(f"Команд в списке: {len(commands_list)}")
+
+
+# Функция для тестирования голоса
+def test_voice(voice_id, voice_name):
+    """Проигрывает тестовое сообщение для выбранного голоса"""
+    if USE_FUNCLIB_SPEAK:
+        # Используем функцию speak из FuncLib
+        try:
+            if voice_id == 0:
+                text = f"Я {voice_name} и это первый голос"
+            elif voice_id == 1:
+                text = f"Я {voice_name} и это второй голос"
+            elif voice_id == 2:
+                text = f"Я {voice_name} и это третий голос"
+            elif voice_id == 3:
+                text = f"Я {voice_name} и это четвёртый голос"
+            else:
+                text = f"Я {voice_name} и это голос номер {voice_id + 1}"
+
+            # Используем функцию speak из FuncLib
+            speak(text, voice=voice_id)
+
+        except Exception as e:
+            print(f"Ошибка воспроизведения голоса через FuncLib: {e}")
+            fallback_voice_test(voice_id, voice_name)
+    else:
+        fallback_voice_test(voice_id, voice_name)
+
+
+def fallback_voice_test(voice_id, voice_name):
+    """Fallback функция тестирования голоса если FuncLib не доступен"""
+    try:
+        if voice_id == 0:
+            text = f"Я {voice_name} и это первый голос"
+        elif voice_id == 1:
+            text = f"Я {voice_name} и это второй голос"
+        elif voice_id == 2:
+            text = f"Я {voice_name} и это третий голос"
+        elif voice_id == 3:
+            text = f"Я {voice_name} и это четвёртый голос"
+        else:
+            text = f"Я {voice_name} и это голос номер {voice_id + 1}"
+
+        # Создаем временный файл
+        tts = gTTS(text=text, lang='ru')
+        tts.save("test_voice.mp3")
+
+        # Проигрываем
+        pygame.mixer.init()
+        pygame.mixer.music.load("test_voice.mp3")
+        pygame.mixer.music.play()
+
+        # Ждём окончания
+        while pygame.mixer.music.get_busy():
+            pass
+
+        # Удаляем временный файл
+        os.remove("test_voice.mp3")
+
+    except Exception as e:
+        print(f"Ошибка воспроизведения голоса (fallback): {e}")
+
+
 # Функции для управления голосовым помощником
 def start_assistant():
     global is_assistant_running, assistant_status, assistant_process, assistant_thread, waiting_for_keyword
@@ -272,18 +372,18 @@ def run_assistant():
             # Нормальное завершение
             assistant_status = "stopped"
             update_status("stopped", "Статус: Остановлен")
-            console_text.insert("end", "⏹️ Работа остановлена\n")  # ИЗМЕНЕНО: сообщение об остановке
+            console_text.insert("end", "⏹️ Работа остановлена\n")
         else:
             # Ошибка при завершении
-            assistant_status = "stopped"  # ИЗМЕНЕНО: вместо "error" используем "stopped"
+            assistant_status = "stopped"
             update_status("stopped", "Статус: Остановлен")
             console_text.insert("end", f"⏹️ Работа остановлена (код завершения: {return_code})\n")
 
     except Exception as e:
         is_assistant_running = False
         waiting_for_keyword = False
-        assistant_status = "stopped"  # ИЗМЕНЕНО: вместо "error" используем "stopped"
-        error_msg = f"⏹️ Работа остановлена: {str(e)}\n"  # ИЗМЕНЕНО: другое сообщение
+        assistant_status = "stopped"
+        error_msg = f"⏹️ Работа остановлена: {str(e)}\n"
         update_status("stopped", f"Статус: Остановлен")
         console_text.insert("end", error_msg)
         console_text.insert("end", "🔄 Готов к запуску\n")
@@ -301,7 +401,7 @@ def on_circular_button_click():
         start_assistant()
     elif assistant_status == "running":
         stop_assistant()
-    else:  # Для статусов starting, stopping или других
+    else:
         # При любом другом статусе просто останавливаем
         stop_assistant()
 
@@ -361,13 +461,14 @@ def save_cfg_variables(variables):
 
 
 # Функции для работы с config.json (голос)
-def load_voice_config():
-    """Загружает конфигурацию голоса из config.json"""
+def load_config():
+    """Загружает конфигурацию из config.json"""
     try:
         config_path = "config.json"
         default_config = {
             "selected_microphone": "",
-            "selected_voice": 1  # По умолчанию голос Байа
+            "selected_voice": 1,  # По умолчанию голос Байа
+            "selected_lib": "models/vosk-model-small-ru-0.22"  # Путь к модели распознавания по умолчанию
         }
 
         if os.path.exists(config_path):
@@ -380,24 +481,57 @@ def load_voice_config():
         else:
             with open(config_path, 'w', encoding='utf-8') as f:
                 json.dump(default_config, f, ensure_ascii=False, indent=2)
-            print(f"Создан файл конфигурации голоса: {config_path}")
+            print(f"Создан файл конфигурации: {config_path}")
             return default_config
     except Exception as e:
-        print(f"Ошибка загрузки конфигурации голоса: {e}")
+        print(f"Ошибка загрузки конфигурации: {e}")
         return default_config
 
 
-def save_voice_config(config):
-    """Сохраняет конфигурацию голоса в config.json"""
+def save_config(config):
+    """Сохраняет конфигурацию в config.json"""
     try:
         config_path = "config.json"
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config, f, ensure_ascii=False, indent=2)
-        print("Конфигурация голоса сохранена")
+        print("Конфигурация сохранена")
         return True
     except Exception as e:
-        print(f"Ошибка сохранения конфигурации голоса: {e}")
+        print(f"Ошибка сохранения конфигурации: {e}")
         return False
+
+
+# Функция для получения списка доступных моделей распознавания
+def get_available_recognition_models():
+    """Получает список доступных моделей из папки models"""
+    models_dir = "models"
+    available_models = []
+
+    # Проверяем существование папки models
+    if not os.path.exists(models_dir):
+        print(f"Папка {models_dir} не найдена. Создаю...")
+        os.makedirs(models_dir, exist_ok=True)
+        return available_models
+
+    # Получаем список папок в директории models
+    try:
+        for item in os.listdir(models_dir):
+            item_path = os.path.join(models_dir, item)
+            if os.path.isdir(item_path):
+                # Формируем относительный путь для сохранения в config.json
+                relative_path = f"models/{item}"
+                available_models.append({
+                    "name": item,
+                    "path": relative_path,
+                    "full_path": item_path
+                })
+
+        # Сортируем по имени для удобства
+        available_models.sort(key=lambda x: x["name"])
+        return available_models
+    except Exception as e:
+        print(f"Ошибка получения списка моделей: {e}")
+        return available_models
 
 
 def get_variable_display_value(var_name, var_value):
@@ -405,7 +539,8 @@ def get_variable_display_value(var_name, var_value):
     if var_value is None or var_value == "":
         return f"{var_name}: Тут пусто"
     else:
-        return f"{var_name}: {var_value}"
+        # Убираем лишние пробелы в начале и конце
+        return f"{var_name}: {var_value.strip()}"
 
 
 def get_protection_status(is_protected):
@@ -863,10 +998,9 @@ def create_settings_content():
                                              corner_radius=0)
     settings_scroll_container.pack(fill="both", expand=True, padx=0, pady=0)
 
-    # Создаем Canvas для скроллинга настроек
     settings_canvas = tk.Canvas(settings_scroll_container,
                                 bg="#2b2b2b",
-                                highlightthickness=0,
+                                width=365,
                                 height=550)
     settings_canvas.pack(side="left", fill="both", expand=True)
 
@@ -900,7 +1034,7 @@ def create_settings_content():
     settings_content.bind("<Configure>", on_settings_frame_configure)
     settings_canvas.bind("<Configure>", on_settings_canvas_configure)
 
-    # Заголовок настроек
+    # Заголовок настроек (ИСПРАВЛЕНО: используем create_multiline_label как в файле 1)
     main_title = create_multiline_label(settings_content,
                                         "Настройки приложения",
                                         max_lines=2,
@@ -908,92 +1042,29 @@ def create_settings_content():
                                         font=ctk.CTkFont(size=24, weight="bold"))
     main_title.pack(pady=(20, 30))
 
-    # Секция выбора голоса
-    voice_section = ctk.CTkFrame(settings_content, fg_color="#333333")
-    voice_section.pack(fill="x", padx=20, pady=(0, 20))
-
-    voice_label = create_multiline_label(voice_section,
-                                         text="Выбор голоса помощника",
-                                         max_lines=2,
-                                         text_color="white",
-                                         font=ctk.CTkFont(size=18, weight="bold"))
-    voice_label.pack(anchor="w", padx=15, pady=10)
-
-    # Загружаем текущую конфигурацию голоса
-    voice_config = load_voice_config()
-    selected_voice = voice_config.get("selected_voice", 1)
-
-    # Голоса
-    voices = [
-        {"name": "Айдар", "id": 0, "description": "Мужской голос"},
-        {"name": "Байа", "id": 1, "description": "Женский голос"},
-        {"name": "Ксения", "id": 2, "description": "Женский голос"},
-        {"name": "Хениа", "id": 3, "description": "Женский голос"}
-    ]
-
-    # Переменная для хранения выбранного голоса
-    current_selected_voice = tk.IntVar(value=selected_voice)
-
-    def save_voice_selection():
-        """Сохраняет выбранный голос в config.json"""
-        selected_voice_id = current_selected_voice.get()
-        voice_config["selected_voice"] = selected_voice_id
-        if save_voice_config(voice_config):
-            # Показываем уведомление об успехе
-            success_label = create_multiline_label(voice_section,
-                                                   f"✓ Голос '{voices[selected_voice_id]['name']}' сохранен!",
-                                                   max_lines=2,
-                                                   text_color="#00ff00",
-                                                   font=ctk.CTkFont(size=12, weight="bold"))
-            success_label.pack(pady=5)
-            root.after(2000, success_label.destroy)
-
-    # Контейнер для голосов
-    voices_container = ctk.CTkFrame(voice_section, fg_color="#444444")
-    voices_container.pack(fill="x", padx=15, pady=(0, 15))
-
-    for voice in voices:
-        voice_frame = ctk.CTkFrame(voices_container, fg_color="transparent")
-        voice_frame.pack(fill="x", pady=5, padx=10)
-
-        # Радиокнопка для выбора голоса
-        radio_btn = ctk.CTkRadioButton(voice_frame,
-                                       text=f"{voice['name']} ({voice['description']})",
-                                       variable=current_selected_voice,
-                                       value=voice['id'],
-                                       text_color="white",
-                                       fg_color="#4682B4",
-                                       hover_color="#5A9BD5",
-                                       command=save_voice_selection)
-        radio_btn.pack(side="left")
-
-        # Добавляем метку с номером
-        voice_id_label = ctk.CTkLabel(voice_frame,
-                                      text=f"ID: {voice['id']}",
-                                      text_color="#888888",
-                                      font=ctk.CTkFont(size=10))
-        voice_id_label.pack(side="right", padx=(10, 0))
-
-    # Кнопка для сохранения выбора голоса
-    save_voice_btn = ctk.CTkButton(voice_section,
-                                   text="Сохранить настройки голоса",
-                                   command=save_voice_selection,
-                                   fg_color="#00aa00",
-                                   hover_color="#008800",
-                                   height=30)
-    save_voice_btn.pack(pady=(10, 15), padx=15)
-
-    # Секция создания пользовательских функций
+    # ========== 1. Сначала "Создание пользовательской функции" ==========
     functions_frame = ctk.CTkFrame(settings_content, fg_color="#333333")
     functions_frame.pack(fill="x", padx=20, pady=(0, 20))
 
-    # ИСПРАВЛЕНО: Заголовок в две строки
-    functions_label = ctk.CTkLabel(functions_frame,
-                                   text="Создание\nпользовательской функции",
-                                   text_color="white",
-                                   font=ctk.CTkFont(size=18, weight="bold"),
-                                   justify="left")
-    functions_label.pack(anchor="w", padx=15, pady=10)
+    # ИСПРАВЛЕНО: Явное разделение на две строки с двумя метками
+    functions_title_frame = ctk.CTkFrame(functions_frame, fg_color="transparent")
+    functions_title_frame.pack(anchor="w", padx=15, pady=10, fill="x")
+
+    # Первая строка: "Создание"
+    functions_label_line1 = ctk.CTkLabel(functions_title_frame,
+                                         text="Создание",
+                                         text_color="white",
+                                         font=ctk.CTkFont(size=18, weight="bold"),
+                                         anchor="w")
+    functions_label_line1.pack(anchor="w")
+
+    # Вторая строка: "пользовательской функции"
+    functions_label_line2 = ctk.CTkLabel(functions_title_frame,
+                                         text="пользовательской функции",
+                                         text_color="white",
+                                         font=ctk.CTkFont(size=18, weight="bold"),
+                                         anchor="w")
+    functions_label_line2.pack(anchor="w")
 
     # Контейнер для создания функций
     create_function_frame = ctk.CTkFrame(functions_frame, fg_color="#444444")
@@ -1108,9 +1179,9 @@ def create_settings_content():
     buttons_frame = ctk.CTkFrame(create_function_frame, fg_color="transparent")
     buttons_frame.pack(fill="x", padx=10, pady=10)
 
-    # Функция для показа уведомления об ошибке
+    # Функция для показа уведомления об ошибки
     def show_error_message(message):
-        """Показывает сообщение об ошибке"""
+        """Показывает сообщение об ошибки"""
         error_frame = ctk.CTkFrame(create_function_frame, fg_color="#442222")
         error_frame.pack(fill="x", pady=5, padx=0)
 
@@ -1134,6 +1205,12 @@ def create_settings_content():
                                                font=ctk.CTkFont(size=12, weight="bold"))
         success_label.pack(pady=5)
         root.after(3000, success_label.destroy)
+
+    def save_function(func_name, code):
+        """Сохраняет пользовательскую функцию в файл"""
+        with open(f"custom_functions.py", "a", encoding="utf-8") as f:
+            f.write(code + "\n")
+        print(f"Функция {func_name} сохранена.")
 
     # Функция для создания пользовательской функции
     def create_custom_function():
@@ -1239,45 +1316,19 @@ def create_settings_content():
             keywords_entry.delete(0, 'end')
             var_combobox.set("None")  # Сбрасываем выбор переменной
 
+            # Обновляем список команд в панели команд
+            update_commands_panel()
+
+            # Обновляем переменные в настройках
+            update_variables_in_settings()
+
+            # Если ассистент запущен, перезапускаем его чтобы подхватил новые команды
+            if assistant_status == "running":
+                console_text.insert("end", "🔄 Обнаружены новые команды, перезапуск ассистента...\n")
+                restart_assistant()
+
         except Exception as e:
             show_error_message(f"❌ Ошибка сохранения: {e}")
-
-    # Функция для предложения создания переменной
-    def suggest_variable_creation():
-        file_path = file_path_entry.get().strip()
-        if not file_path:
-            show_error_message("❌ Сначала укажите путь к файлу")
-            return
-
-        # Предлагаем создать переменную
-        dialog = ctk.CTkInputDialog(
-            text=f"Создать переменную для пути:\n{file_path}\n\nВведите имя переменной:",
-            title="Создание переменной"
-        )
-        var_name = dialog.get_input()
-
-        if var_name and var_name.strip():
-            var_name = var_name.strip()
-
-            # Добавляем переменную в cfg.json
-            cfg_vars = load_cfg_variables()
-            cfg_vars[var_name] = {
-                'value': file_path,
-                'protected': False
-            }
-
-            if save_cfg_variables(cfg_vars):
-                # Обновляем комбобокс
-                updated_vars = list(cfg_vars.keys())
-                var_combobox.configure(values=["None"] + updated_vars)
-                var_combobox.set(var_name)
-
-                # Очищаем поле пути
-                file_path_entry.delete(0, 'end')
-
-                show_success_message(f"✓ Переменная '{var_name}' создана!")
-            else:
-                show_error_message("❌ Ошибка создания переменной")
 
     # Кнопки создания
     create_buttons_frame = ctk.CTkFrame(buttons_frame, fg_color="transparent")
@@ -1381,7 +1432,7 @@ def create_settings_content():
 
         root.after(5000, remove_message)
 
-    # Кнопка Ctrl+V с цветом фона меню настроек
+    # Кнопка Ctrl+V с цветом фона меню настроек (ИСПРАВЛЕНО: цвет #333333 как в файле 1)
     def paste_to_selected_function_field():
         selected_field = get_selected_function_field()
         if selected_field:
@@ -1393,13 +1444,13 @@ def create_settings_content():
     ctrl_v_btn = ctk.CTkButton(functions_clipboard_frame,
                                text="Ctrl + V",
                                command=paste_to_selected_function_field,
-                               fg_color="#444444",  # ИЗМЕНЕНО: такой же цвет как у Del
-                               hover_color="#555555",  # ИЗМЕНЕНО: такой же hover цвет как у Del
+                               fg_color="#333333",  # ← ИЗМЕНЕНО: цвет как в файле 1
+                               hover_color="#444444",  # ← ИЗМЕНЕНО: hover цвет как в файле 1
                                width=80,
                                height=25)
     ctrl_v_btn.pack(side="left", padx=(0, 5))
 
-    # Кнопка "Del" для очистки выбранного поля
+    # Кнопка "Del" для очистки выбранного поля (ИСПРАВЛЕНО: цвет #333333 как в файле 1)
     def clear_selected_field():
         selected_field = get_selected_function_field()
         if selected_field:
@@ -1409,8 +1460,8 @@ def create_settings_content():
     del_btn = ctk.CTkButton(functions_clipboard_frame,
                             text="Del",
                             command=clear_selected_field,
-                            fg_color="#444444",
-                            hover_color="#555555",
+                            fg_color="#333333",  # ← ИЗМЕНЕНО: цвет как в файле 1
+                            hover_color="#555555",  # ← ИЗМЕНЕНО: hover цвет как в файле 1
                             width=50,
                             height=25)
     del_btn.pack(side="left", padx=(0, 10))
@@ -1418,11 +1469,9 @@ def create_settings_content():
     # Комбобокс для выбора поля справа
     clipboard_combobox.pack(side="right")
 
-    # Убрана информационная надпись "Функции будут добавлены в ..."
-
-    # Секция переменных cfg.json
+    # ========== 2. Потом "Переменные конфигурации" ==========
     variables_section_frame = ctk.CTkFrame(settings_content, fg_color="#333333")
-    variables_section_frame.pack(fill="x", padx=20, pady=(0, 20))
+    variables_section_frame.pack(fill="x", padx=20, pady=(0, 0))
 
     variables_label = create_multiline_label(variables_section_frame,
                                              text="Переменные конфигурации",
@@ -1436,9 +1485,10 @@ def create_settings_content():
     variable_entries = {}  # Словарь для хранения полей ввода
     variable_frames = {}  # Словарь для хранения фреймов переменных
 
-    # Контейнер для отображения переменных (ОТДЕЛЬНЫЙ ФРЕЙМ ДЛЯ ПЕРЕМЕННЫХ)
-    variables_display_frame = ctk.CTkFrame(variables_section_frame, fg_color="#333333")
-    variables_display_frame.pack(fill="x", padx=15, pady=(0, 15))
+    # Контейнер для отображения переменных (ОТЕДЕЛЬНЫЙ ФРЕЙМ ДЛЯ ПЕРЕМЕННЫХ)
+    global variables_display_frame_widget
+    variables_display_frame_widget = ctk.CTkFrame(variables_section_frame, fg_color="#333333")
+    variables_display_frame_widget.pack(fill="x", padx=15, pady=(0, 15))
 
     # ОТДЕЛЬНЫЙ ФРЕЙМ ДЛЯ КНОПОК CTRL+V и DEL (вне фрейма переменных)
     variables_clipboard_container = ctk.CTkFrame(variables_section_frame, fg_color="transparent")
@@ -1462,11 +1512,12 @@ def create_settings_content():
         return {**protected_sorted, **unprotected_sorted}
 
     # Функция для создания полей ввода переменных
+    # Функция для создания полей ввода переменных
     def create_variable_fields():
         nonlocal cfg_variables, variable_entries, variable_frames
 
         # Очищаем существующие поля
-        for widget in variables_display_frame.winfo_children():
+        for widget in variables_display_frame_widget.winfo_children():
             widget.destroy()
 
         variable_entries = {}
@@ -1474,10 +1525,10 @@ def create_settings_content():
 
         if not cfg_variables:
             # Если переменных нет, показываем сообщение
-            no_vars_label = create_multiline_label(variables_display_frame,
-                                                   "Переменные не добавлены",
-                                                   max_lines=2,
-                                                   text_color="#888888")
+            no_vars_label = ctk.CTkLabel(variables_display_frame_widget,
+                                         text="Переменные не добавлены",
+                                         text_color="#888888",
+                                         font=ctk.CTkFont(size=12))
             no_vars_label.pack(pady=20)
             return
 
@@ -1490,27 +1541,65 @@ def create_settings_content():
             var_value = var_data.get('value', '')
             is_protected = var_data.get('protected', False)
 
+            # Убираем лишние пробелы в начале и конце значения
+            cleaned_value = var_value.strip() if var_value else ""
+
             # Фрейм для одной переменной
-            var_frame = ctk.CTkFrame(variables_display_frame, fg_color="#444444")
+            var_frame = ctk.CTkFrame(variables_display_frame_widget, fg_color="#444444")
             var_frame.pack(fill="x", pady=5, padx=0)
             variable_frames[var_name] = var_frame
 
-            # Верхняя строка с названием и кнопкой удаления
+            # Основной контейнер для верхней строки
             top_frame = ctk.CTkFrame(var_frame, fg_color="transparent")
             top_frame.pack(fill="x", padx=12, pady=(8, 5))
 
-            # Метка с именем переменной и текущим значением (с номером в круглых скобках)
-            value_label_text = get_variable_display_value(var_name, var_value)
-            if is_protected:
-                value_label_text = f"({idx}) 🔒 {value_label_text}"
-            else:
-                value_label_text = f"({idx}) {value_label_text}"
+            # Создаем Grid для правильного расположения
+            top_frame.grid_columnconfigure(0, weight=1)  # Метка занимает все доступное пространство
+            top_frame.grid_columnconfigure(1, weight=0)  # Кнопка - минимальный размер
 
-            value_label = create_multiline_label(top_frame, value_label_text,
-                                                 max_lines=2,
-                                                 text_color="#cccccc",
-                                                 font=ctk.CTkFont(size=12))
-            value_label.pack(side="left", fill="x", expand=True)
+            # Метка с именем переменной и текущим значением
+            value_label_text = get_variable_display_value(var_name, cleaned_value)
+            if is_protected:
+                display_text = f"({idx}) 🔒 {value_label_text}"
+            else:
+                display_text = f"({idx}) {value_label_text}"
+
+            # Функция для автоматического переноса текста
+            def wrap_text_for_label(text, max_chars=30):
+                """Разбивает текст на строки для правильного отображения"""
+                words = text.split()
+                lines = []
+                current_line = []
+
+                for word in words:
+                    current_line.append(word)
+                    current_text = ' '.join(current_line)
+
+                    if len(current_text) > max_chars:
+                        if len(current_line) > 1:
+                            lines.append(' '.join(current_line[:-1]))
+                            current_line = [word]
+                        else:
+                            lines.append(word)
+                            current_line = []
+
+                if current_line:
+                    lines.append(' '.join(current_line))
+
+                return '\n'.join(lines)
+
+            # Обернутый текст для метки
+            wrapped_text = wrap_text_for_label(display_text, max_chars=25)
+
+            # Метка с выравниванием влево и поддержкой переноса
+            value_label = ctk.CTkLabel(top_frame,
+                                       text=wrapped_text,
+                                       text_color="white",
+                                       font=ctk.CTkFont(size=12),
+                                       anchor="w",
+                                       justify="left",
+                                       wraplength=250)  # Уменьшил ширину для переноса
+            value_label.grid(row=0, column=0, sticky="w", padx=(0, 10))
 
             # Кнопка удаления (крестик)
             if is_protected:
@@ -1533,7 +1622,7 @@ def create_settings_content():
                                            hover_color="#cc0000",
                                            text_color="white",
                                            command=lambda name=var_name: delete_variable(name))
-            delete_btn.pack(side="right", padx=(5, 0))
+            delete_btn.grid(row=0, column=1, sticky="e")
 
             # Контейнер для поля ввода
             input_frame = ctk.CTkFrame(var_frame, fg_color="transparent")
@@ -1546,9 +1635,9 @@ def create_settings_content():
             entry.pack(side="left", fill="x", expand=True)
             enable_text_shortcuts(entry)
 
-            # Если есть текущее значение, показываем его в поле ввода
-            if var_value and var_value != "":
-                entry.insert(0, var_value)
+            # Если есть текущее значение, показываем его в поле ввода (без лишних пробелов)
+            if cleaned_value and cleaned_value != "":
+                entry.insert(0, cleaned_value)
 
             variable_entries[var_name] = entry
 
@@ -1612,7 +1701,7 @@ def create_settings_content():
 
         # Обновляем значения из полей ввода для ВСЕХ переменных (включая защищенные)
         for var_name, entry in variable_entries.items():
-            new_value = entry.get().strip()
+            new_value = entry.get().strip()  # Убираем пробелы в начале и конце
             cfg_variables[var_name]['value'] = new_value
 
             # Очищаем поле ввода после сохранения
@@ -1621,7 +1710,7 @@ def create_settings_content():
         # Сохраняем в файл
         if save_cfg_variables(cfg_variables):
             # Показываем уведомление об успехе
-            success_label = create_multiline_label(variables_display_frame,
+            success_label = create_multiline_label(variables_display_frame_widget,
                                                    "✓ Переменные сохранены!",
                                                    max_lines=2,
                                                    text_color="#00ff00",
@@ -1711,9 +1800,6 @@ def create_settings_content():
                                                      width=100)
             var_clipboard_combobox.set("None")
 
-            # ИСПРАВЛЕНО: Убираем pack и размещаем кнопки так же как в создании функций
-            # Теперь порядок: [Ctrl+V] [Del] [ComboBox]
-
             # Функция для получения выбранной переменной
             def get_selected_variable_field():
                 selected = var_clipboard_combobox.get()
@@ -1743,7 +1829,7 @@ def create_settings_content():
 
                 root.after(5000, remove_message)
 
-            # Кнопка Ctrl+V для переменных с цветом фона меню настроек (согласовано с первой секцией)
+            # Кнопка Ctrl+V для переменных (ИСПРАВЛЕНО: цвет #333333 как в файле 1)
             def paste_to_selected_variable_field():
                 selected_field = get_selected_variable_field()
                 if selected_field:
@@ -1755,13 +1841,13 @@ def create_settings_content():
             var_ctrl_v_btn = ctk.CTkButton(variables_clipboard_frame,
                                            text="Ctrl + V",
                                            command=paste_to_selected_variable_field,
-                                           fg_color="#444444",  # ИЗМЕНЕНО: такой же цвет
-                                           hover_color="#555555",  # ИЗМЕНЕНО: такой же hover цвет
+                                           fg_color="#444444",  # ← ИЗМЕНЕНО: цвет как в файле 1
+                                           hover_color="#444444",  # ← ИЗМЕНЕНО: hover цвет как в файле 1
                                            width=80,
                                            height=25)
             var_ctrl_v_btn.pack(side="left", padx=(0, 5))
 
-            # Кнопка "Del" для очистки выбранного поля переменной
+            # Кнопка "Del" для очистки выбранного поля переменной (ИСПРАВЛЕНО: цвет #333333 как в файле 1)
             def clear_selected_variable_field():
                 selected_field = get_selected_variable_field()
                 if selected_field:
@@ -1771,8 +1857,8 @@ def create_settings_content():
             var_del_btn = ctk.CTkButton(variables_clipboard_frame,
                                         text="Del",
                                         command=clear_selected_variable_field,
-                                        fg_color="#444444",
-                                        hover_color="#555555",
+                                        fg_color="#444444",  # ← ИЗМЕНЕНО: цвет как в файле 1
+                                        hover_color="#555555",  # ← ИЗМЕНЕНО: hover цвет как в файле 1
                                         width=50,
                                         height=25)
             var_del_btn.pack(side="left", padx=(0, 10))
@@ -1792,10 +1878,195 @@ def create_settings_content():
     update_variables_combobox()
 
     # Привязываем событие клика только к фоновым элементам
-    variables_display_frame.bind("<Button-1>", lose_focus_on_background)
+    variables_display_frame_widget.bind("<Button-1>", lose_focus_on_background)
     variables_section_frame.bind("<Button-1>", lose_focus_on_background)
 
-    # Секция аудио устройств
+    # ========== 3. Потом "Выбор голоса приложения" ==========
+    voice_section = ctk.CTkFrame(settings_content, fg_color="#333333")
+    voice_section.pack(fill="x", padx=20, pady=(15, 15))
+
+    voice_label = create_multiline_label(voice_section,
+                                         text="Выбор голоса приложения",
+                                         max_lines=2,
+                                         text_color="white",
+                                         font=ctk.CTkFont(size=18, weight="bold"))
+    voice_label.pack(anchor="w", padx=20, pady=10)
+
+    # Загружаем текущую конфигурацию голоса
+    config = load_config()
+    selected_voice = config.get("selected_voice", 1)
+
+    # Голоса
+    voices = [
+        {"name": "Айдар", "id": 0, "description": "Мужской голос"},
+        {"name": "Байа", "id": 1, "description": "Женский голос"},
+        {"name": "Ксения", "id": 2, "description": "Женский голос"},
+        {"name": "Хениа", "id": 3, "description": "Женский голос"}
+    ]
+
+    # Переменная для хранения выбранного голоса
+    current_selected_voice = tk.IntVar(value=selected_voice)
+
+    def save_voice_selection():
+        """Сохраняет выбранный голос в config.json"""
+        selected_voice_id = current_selected_voice.get()
+        config["selected_voice"] = selected_voice_id
+        if save_config(config):
+            # Показываем уведомление об успехе
+            success_label = create_multiline_label(voice_section,
+                                                   f"✓ Голос '{voices[selected_voice_id]['name']}' сохранен!",
+                                                   max_lines=2,
+                                                   text_color="#00ff00",
+                                                   font=ctk.CTkFont(size=12, weight="bold"))
+            success_label.pack(pady=5)
+            root.after(2000, success_label.destroy)
+
+    # Контейнер для голосов
+    voices_container = ctk.CTkFrame(voice_section, fg_color="#444444")
+    voices_container.pack(fill="x", padx=15, pady=(0, 15))
+
+    for voice in voices:
+        voice_frame = ctk.CTkFrame(voices_container, fg_color="transparent")
+        voice_frame.pack(fill="x", pady=5, padx=10)
+
+        # Левая часть: радиокнопка
+        left_frame = ctk.CTkFrame(voice_frame, fg_color="transparent")
+        left_frame.pack(side="left", fill="both", expand=True)
+
+        # Радиокнопка для выбора голоса
+        radio_btn = ctk.CTkRadioButton(left_frame,
+                                       text=f"{voice['name']} ({voice['description']})",
+                                       variable=current_selected_voice,
+                                       value=voice['id'],
+                                       text_color="white",
+                                       fg_color="#4682B4",
+                                       hover_color="#5A9BD5",
+                                       command=save_voice_selection)
+        radio_btn.pack(side="left", padx=(0, 10))
+
+        right_frame = ctk.CTkFrame(voice_frame, fg_color="transparent")
+        right_frame.pack(side="right", fill="y")
+
+        # Зеленая кнопка "Тест"
+        test_button = ctk.CTkButton(right_frame,
+                                    text="Тест",
+                                    width=50,
+                                    height=25,
+                                    fg_color="#00aa00",
+                                    hover_color="#008800",
+                                    text_color="white",
+                                    font=ctk.CTkFont(size=10, weight="bold"),
+                                    command=lambda vid=voice['id'], vname=voice['name']: test_voice(vid, vname))
+        test_button.pack(side="left")
+
+    # ========== 4. Новая секция "Модель распознавания" ==========
+    model_section = ctk.CTkFrame(settings_content, fg_color="#333333")
+    model_section.pack(fill="x", padx=20, pady=(0, 15))
+
+    model_label = create_multiline_label(model_section,
+                                         text="Модель распознавания",
+                                         max_lines=2,
+                                         text_color="white",
+                                         font=ctk.CTkFont(size=18, weight="bold"))
+    model_label.pack(anchor="w", padx=20, pady=10)
+
+    # Получаем доступные модели
+    available_models = get_available_recognition_models()
+    selected_lib = config.get("selected_lib", "models/vosk-model-small-ru-0.22")
+
+    # Контейнер для моделей
+    models_container = ctk.CTkFrame(model_section, fg_color="#444444")
+    models_container.pack(fill="x", padx=15, pady=(0, 10))
+
+    # Контейнер для информационных сообщений
+    info_container = ctk.CTkFrame(model_section, fg_color="transparent")
+    info_container.pack(fill="x", padx=15, pady=(0, 10))
+
+    # Предупреждение о больших моделях (первый абзац)
+    warning_frame = ctk.CTkFrame(info_container, fg_color="transparent")
+    warning_frame.pack(fill="x", pady=(0, 5))
+
+    warning_text = "• ВНИМАНИЕ! При использовании большой модели значительно увеличиться не только качество распознания речи, но и время запуска приложения и время обработки команд."
+    warning_label = create_multiline_label(warning_frame,
+                                           warning_text,
+                                           max_lines=4,
+                                           text_color="#ff6666",  # Красный цвет
+                                           font=ctk.CTkFont(size=11, weight="bold"))  # Жирный шрифт
+    warning_label.pack(anchor="w", padx=(0, 0))
+
+    # Инструкция по добавлению моделей (второй абзац)
+    info_frame = ctk.CTkFrame(info_container, fg_color="transparent")
+    info_frame.pack(fill="x", pady=(5, 0))
+
+    info_text = "• Добавьте модели в папку 'models' в директории проекта"
+    info_label = create_multiline_label(info_frame,
+                                        info_text,
+                                        max_lines=2,
+                                        text_color="#cccccc",
+                                        font=ctk.CTkFont(size=11))
+    info_label.pack(anchor="w", padx=(0, 0))
+
+    if available_models:
+        # Переменная для хранения выбранной модели
+        current_selected_model = tk.StringVar(value=selected_lib)
+
+        def save_model_selection():
+            """Сохраняет выбранную модель в config.json"""
+            selected_model_path = current_selected_model.get()
+            config["selected_lib"] = selected_model_path
+            if save_config(config):
+                # Находим имя модели для отображения
+                model_name = "Неизвестная модель"
+                for model in available_models:
+                    if model["path"] == selected_model_path:
+                        model_name = model["name"]
+                        break
+
+                # Показываем уведомление об успехе
+                success_label = create_multiline_label(model_section,
+                                                       f"✓ Модель '{model_name}' сохранена!",
+                                                       max_lines=2,
+                                                       text_color="#00ff00",
+                                                       font=ctk.CTkFont(size=12, weight="bold"))
+                success_label.pack(pady=5)
+                root.after(2000, success_label.destroy)
+
+        for model in available_models:
+            model_frame = ctk.CTkFrame(models_container, fg_color="transparent")
+            model_frame.pack(fill="x", pady=3, padx=10)
+
+            # Левая часть: радиокнопка
+            left_frame = ctk.CTkFrame(model_frame, fg_color="transparent")
+            left_frame.pack(side="left", fill="both", expand=True)
+
+            # Радиокнопка для выбора модели
+            radio_btn = ctk.CTkRadioButton(left_frame,
+                                           text=f"{model['name']}",
+                                           variable=current_selected_model,
+                                           value=model['path'],
+                                           text_color="white",
+                                           fg_color="#4682B4",
+                                           hover_color="#5A9BD5",
+                                           command=save_model_selection)
+            radio_btn.pack(side="left", padx=(0, 10))
+
+            # Устанавливаем выбранную модель
+            if model['path'] == selected_lib:
+                radio_btn.select()
+
+    else:
+        # Если нет доступных моделей
+        no_models_frame = ctk.CTkFrame(models_container, fg_color="transparent")
+        no_models_frame.pack(pady=10)
+
+        no_models_label = create_multiline_label(no_models_frame,
+                                                 "Модели не найдены. Добавьте модели в папку 'models'",
+                                                 max_lines=3,
+                                                 text_color="#cccccc",
+                                                 font=ctk.CTkFont(size=12))
+        no_models_label.pack()
+
+    # ========== 5. В самом конце "Устройства ввода" ==========
     audio_frame = ctk.CTkFrame(settings_content, fg_color="#333333")
     audio_frame.pack(fill="x", padx=20, pady=(0, 20))
 
@@ -1903,9 +2174,235 @@ def create_settings_content():
 
     # Привязываем событие клика к корневому окна для потери фокуса только на фоне
     audio_frame.bind("<Button-1>", lose_focus_on_background)
+    model_section.bind("<Button-1>", lose_focus_on_background)
+    voice_section.bind("<Button-1>", lose_focus_on_background)
     settings_content.bind("<Button-1>", lose_focus_on_background)
     settings_canvas.bind("<Button-1>", lose_focus_on_background)
     settings_scroll_container.bind("<Button-1>", lose_focus_on_background)
+
+
+# Функция обновления панели команд
+def update_commands_panel():
+    """Обновляет содержимое панели команд"""
+    global commands_frame_widget
+
+    if commands_frame_widget:
+        # Очищаем текущие команды
+        for widget in commands_frame_widget.winfo_children():
+            widget.destroy()
+
+        # Загружаем обновленные команды
+        commands_list = load_commands_from_json()
+
+        # Заполняем командами
+        if commands_list:
+            for command in commands_list:
+                name_for_gui = command.get("nameForGUI", "Неизвестная команда")
+                is_protected = command.get("protected", False)
+                keywords = command.get("keywords", [])
+                keywords_text = ", ".join(keywords)
+
+                # Принудительный перенос текста после 25 символов
+                wrapped_name = wrap_text(f"• {name_for_gui}", max_chars=25)
+                wrapped_keywords = wrap_text(f"Ключевые слова: {keywords_text}", max_chars=25)
+
+                # Подсчитываем количество строк в названии и ключевых словах
+                name_lines_count = len(wrapped_name.split('\n'))
+                keywords_lines_count = len(wrapped_keywords.split('\n'))
+
+                # Рассчитываем высоту блока на основе количества строк
+                base_height = 80
+                extra_name_height = max(0, (name_lines_count - 2)) * 20
+                extra_keywords_height = max(0, (keywords_lines_count - 1)) * 18
+                block_height = base_height + extra_name_height + extra_keywords_height
+
+                # Фрейм для команды с АДАПТИВНОЙ ВЫСОТОЙ
+                command_frame = ctk.CTkFrame(commands_frame_widget,
+                                             fg_color="#333333",
+                                             corner_radius=8,
+                                             width=350,
+                                             height=block_height)
+                command_frame.pack(fill="x", pady=5, padx=0)
+                command_frame.pack_propagate(False)
+
+                # Основной контейнер внутри фрейма команды
+                content_container = ctk.CTkFrame(command_frame, fg_color="transparent")
+                content_container.pack(fill="both", expand=True, padx=12, pady=8)
+
+                # Верхний фрейм с названием и кнопкой удаления
+                top_frame = ctk.CTkFrame(content_container, fg_color="transparent")
+                top_frame.pack(fill="x", pady=(0, 5))
+
+                # Левая часть - название функции с ПРИНУДИТЕЛЬНЫМ ПЕРЕНОСОМ
+                name_frame = ctk.CTkFrame(top_frame, fg_color="transparent")
+                name_frame.pack(side="left", fill="x", expand=True)
+
+                # Метка с именем функции
+                name_label = ctk.CTkLabel(name_frame,
+                                          text=wrapped_name,
+                                          text_color="white",
+                                          font=ctk.CTkFont(size=14, weight="bold"),
+                                          anchor="w",
+                                          justify="left")
+                name_label.pack(fill="x", anchor="w")
+
+                # Правая часть - кнопка удаления
+                if is_protected:
+                    # Защищенная команда - серый крестик
+                    delete_btn = ctk.CTkButton(top_frame,
+                                               text="✕",
+                                               width=25,
+                                               height=25,
+                                               fg_color="#666666",
+                                               hover_color="#666666",
+                                               text_color="#999999",
+                                               state="disabled")
+                else:
+                    # Незащищенная команда - красный крестик
+                    delete_btn = ctk.CTkButton(top_frame,
+                                               text="✕",
+                                               width=25,
+                                               height=25,
+                                               fg_color="#aa0000",
+                                               hover_color="#cc0000",
+                                               text_color="white",
+                                               command=lambda name=command.get('name'), frame=command_frame,
+                                                              prot=is_protected: delete_command(name, frame, prot))
+                delete_btn.pack(side="right", padx=(5, 0))
+
+                # Нижний фрейм с ключевыми словами
+                bottom_frame = ctk.CTkFrame(content_container, fg_color="transparent")
+                bottom_frame.pack(fill="x")
+
+                # Метка с ключевыми словами
+                keywords_label = ctk.CTkLabel(bottom_frame,
+                                              text=wrapped_keywords,
+                                              text_color="#cccccc",
+                                              font=ctk.CTkFont(size=12),
+                                              anchor="w",
+                                              justify="left")
+                keywords_label.pack(fill="x", anchor="w")
+
+        # Обновляем счетчик команд
+        update_commands_count()
+
+
+# Функция обновления переменных в настройках
+def update_variables_in_settings():
+    """Обновляет список переменных в панели настроек"""
+    global variables_display_frame_widget
+
+    if variables_display_frame_widget:
+        # Очищаем текущие переменные
+        for widget in variables_display_frame_widget.winfo_children():
+            widget.destroy()
+
+        # Загружаем обновленные переменные
+        cfg_variables = load_cfg_variables()
+
+        if not cfg_variables:
+            # Если переменных нет, показываем сообщение
+            no_vars_label = ctk.CTkLabel(variables_display_frame_widget,
+                                         text="Переменные не добавлены",
+                                         text_color="#888888",
+                                         font=ctk.CTkFont(size=12))
+            no_vars_label.pack(pady=20)
+            return
+
+        # Сортируем переменные: защищенные сначала
+        def sort_variables(variables_dict):
+            protected_vars = {}
+            unprotected_vars = {}
+
+            for var_name, var_data in variables_dict.items():
+                if var_data.get('protected', False):
+                    protected_vars[var_name] = var_data
+                else:
+                    unprotected_vars[var_name] = var_data
+
+            # Сортируем по имени внутри каждой группы
+            protected_sorted = dict(sorted(protected_vars.items()))
+            unprotected_sorted = dict(sorted(unprotected_vars.items()))
+
+            return {**protected_sorted, **unprotected_sorted}
+
+        sorted_variables = sort_variables(cfg_variables)
+
+        # Создаем поля для каждой переменной
+        for idx, (var_name, var_data) in enumerate(sorted_variables.items(), 1):
+            # Извлекаем значение и защиту
+            var_value = var_data.get('value', '')
+            is_protected = var_data.get('protected', False)
+
+            # Убираем лишние пробелы в начале и конце значения
+            cleaned_value = var_value.strip() if var_value else ""
+
+            # Фрейм для одной переменной
+            var_frame = ctk.CTkFrame(variables_display_frame_widget, fg_color="#444444")
+            var_frame.pack(fill="x", pady=5, padx=0)
+
+            # Основной контейнер для верхней строки
+            top_frame = ctk.CTkFrame(var_frame, fg_color="transparent")
+            top_frame.pack(fill="x", padx=12, pady=(8, 5))
+
+            # Метка с именем переменной и текущим значением
+            value_label_text = get_variable_display_value(var_name, cleaned_value)
+            if is_protected:
+                display_text = f"({idx}) 🔒 {value_label_text}"
+            else:
+                display_text = f"({idx}) {value_label_text}"
+
+            # Обернутый текст для метки
+            wrapped_text = display_text
+            if len(display_text) > 60:
+                wrapped_text = display_text[:57] + "..."
+
+            # Метка с выравниванием влево
+            value_label = ctk.CTkLabel(top_frame,
+                                       text=wrapped_text,
+                                       text_color="white",
+                                       font=ctk.CTkFont(size=12),
+                                       anchor="w")
+            value_label.pack(side="left", fill="x", expand=True)
+
+            # Кнопка удаления (крестик)
+            if is_protected:
+                # Защищенная переменная - серый крестик
+                delete_btn = ctk.CTkButton(top_frame,
+                                           text="✕",
+                                           width=25,
+                                           height=25,
+                                           fg_color="#666666",
+                                           hover_color="#666666",
+                                           text_color="#999999",
+                                           state="disabled")
+            else:
+                # Незащищенная переменная - красный крестик
+                delete_btn = ctk.CTkButton(top_frame,
+                                           text="✕",
+                                           width=25,
+                                           height=25,
+                                           fg_color="#aa0000",
+                                           hover_color="#cc0000",
+                                           text_color="white",
+                                           command=lambda name=var_name: None)  # Функция удаления будет переопределена
+                # TODO: Добавить функцию удаления переменной
+            delete_btn.pack(side="right")
+
+            # Контейнер для поля ввода
+            input_frame = ctk.CTkFrame(var_frame, fg_color="transparent")
+            input_frame.pack(fill="x", padx=12, pady=(0, 8))
+
+            # Поле ввода для изменения значения с поддержкой горячих клавиш
+            entry = ctk.CTkEntry(input_frame,
+                                 placeholder_text=get_protection_status(is_protected),
+                                 width=300)
+            entry.pack(side="left", fill="x", expand=True)
+            enable_text_shortcuts(entry)
+
+            # Если есть текущее значение, показываем его в поле ввода (без лишних пробелов)
+            if cleaned_value and cleaned_value != "":
+                entry.insert(0, cleaned_value)
 
 
 # Создание содержимого панели команд
@@ -1979,10 +2476,11 @@ def create_commands_content():
     scroll_container.grid_columnconfigure(0, weight=1)
 
     # Создаем фрейм для команд внутри canvas
-    commands_frame = ctk.CTkFrame(canvas, fg_color="#2b2b2b", corner_radius=0)
+    global commands_frame_widget
+    commands_frame_widget = ctk.CTkFrame(canvas, fg_color="#2b2b2b", corner_radius=0)
 
     # Создаем окно в canvas для нашего фрейма
-    canvas.create_window((0, 0), window=commands_frame, anchor="nw")
+    canvas.create_window((0, 0), window=commands_frame_widget, anchor="nw")
 
     # Функции для работы скроллинга
     def on_frame_configure(event):
@@ -1994,7 +2492,7 @@ def create_commands_content():
         canvas.itemconfig(canvas.find_all()[0], width=event.width)
 
     # Привязываем события
-    commands_frame.bind("<Configure>", on_frame_configure)
+    commands_frame_widget.bind("<Configure>", on_frame_configure)
     canvas.bind("<Configure>", on_canvas_configure)
 
     # Функция для удаления команды
@@ -2022,12 +2520,18 @@ def create_commands_content():
 
             print(f"Команда {command_name} удалена")
         except Exception as e:
-            print(f"Ошибка удаления команда: {e}")
+            print(f"Ошибка удаления команды: {e}")
 
     # Функция для обновления счетчика команд
     def update_commands_count():
         commands_count = len(load_commands_from_json())
-        count_label.configure(text=f"Всего команд: {commands_count}")
+        # Ищем метку счетчика в commands_content
+        for widget in commands_content.winfo_children():
+            if isinstance(widget, ctk.CTkFrame) and widget.winfo_height() == 30:
+                for child in widget.winfo_children():
+                    if isinstance(child, ctk.CTkLabel):
+                        child.configure(text=f"Всего команд: {commands_count}")
+                        break
 
     # Заполняем командами
     if commands_list:
@@ -2052,7 +2556,7 @@ def create_commands_content():
             block_height = base_height + extra_name_height + extra_keywords_height
 
             # Фрейм для команды с АДАПТИВНОЙ ВЫСОТОЙ
-            command_frame = ctk.CTkFrame(commands_frame,
+            command_frame = ctk.CTkFrame(commands_frame_widget,
                                          fg_color="#333333",
                                          corner_radius=8,
                                          width=350,
@@ -2118,7 +2622,7 @@ def create_commands_content():
                                           justify="left")
             keywords_label.pack(fill="x", anchor="w")
     else:
-        no_commands_frame = ctk.CTkFrame(commands_frame,
+        no_commands_frame = ctk.CTkFrame(commands_frame_widget,
                                          fg_color="#333333",
                                          corner_radius=8,
                                          width=350,
@@ -2146,30 +2650,18 @@ def create_commands_content():
     count_label.pack(pady=5)
 
 
-# Верхняя панель заголовка основного окна
+# ИЗМЕНЕНО: Верхняя панель с знаками "=" вместо названия и кнопки закрытия
 title_bar = ctk.CTkFrame(root, fg_color=BGColorForFirstButtoms, height=30, corner_radius=0)
 title_bar.pack(fill="x", padx=0, pady=0)
 
-buttons_frame = ctk.CTkFrame(title_bar, fg_color=BGColorForFirstButtoms, height=30, corner_radius=0)
-buttons_frame.pack(side="right", padx=0)
-
-close_btn = ctk.CTkButton(buttons_frame,
-                          text="X",
-                          command=root.destroy,
-                          fg_color=BGColorForFirstButtoms,
-                          hover_color="#FF4444",
-                          width=30,
-                          height=30,
-                          corner_radius=0)
-close_btn.pack(side="right", padx=1)
-
-NameProject = create_multiline_label(title_bar,
-                                     text="AudioAssistant",
-                                     max_lines=1,
-                                     text_color="white",
-                                     fg_color=BGColorForFirstButtoms,
-                                     font=ctk.CTkFont(size=12, weight="bold"))
-NameProject.pack(side="left", padx=10)
+# Удаляем кнопки и название, оставляем только строку с "="
+equals_label = create_multiline_label(title_bar,
+                                      text="=" * 50,  # 50 знаков равно для заполнения строки
+                                      max_lines=1,
+                                      text_color="white",
+                                      fg_color=BGColorForFirstButtoms,
+                                      font=ctk.CTkFont(size=12))
+equals_label.pack(side="left", padx=10, fill="x", expand=True)
 
 SettingsBar = ctk.CTkFrame(root,
                            fg_color=BGcolorForSettings,
@@ -2190,6 +2682,7 @@ SetBut = ctk.CTkButton(settings_buttons_frame,
                        hover_color="#444444",
                        text_color="white",
                        height=30,
+                       width=125,
                        corner_radius=2)
 SetBut.pack(side="right", padx=2)
 
@@ -2200,6 +2693,7 @@ ComList = ctk.CTkButton(settings_buttons_frame,
                         hover_color="#444444",
                         text_color="white",
                         height=30,
+                        width=125,
                         corner_radius=2)
 ComList.pack(side="right", padx=0)
 
@@ -2208,7 +2702,7 @@ Rus = create_multiline_label(SettingsBar,
                              max_lines=1,
                              text_color="white",
                              fg_color=BGcolorForSettings,
-                             font=ctk.CTkFont(size=10))
+                             font=ctk.CTkFont(size=12))
 Rus.pack(side="left", padx=10)
 
 # Основная область контента
@@ -2217,12 +2711,44 @@ content_frame = ctk.CTkFrame(root,
                              corner_radius=0)
 content_frame.pack(fill="both", expand=True, padx=0, pady=0)
 
+# ИЗМЕНЕНО: Фраза "Добро пожаловать!" с функцией исчезновения через 10 секунд
 welcome_label = create_multiline_label(content_frame,
-                                       "Добро пожаловать в AudioAssistant!",
+                                       "Добро пожаловать!",
                                        max_lines=2,
                                        text_color="white",
                                        font=ctk.CTkFont(size=16, weight="bold"))
 welcome_label.pack(pady=15)
+
+
+# Функция для исчезновения приветственного сообщения
+def fade_welcome_message():
+    """Постепенно делает приветственное сообщение прозрачным, меняя цвет на цвет фона"""
+    # Цвет фона в формате RGB
+    bg_color = (120, 53, 24)  # #783518 в RGB
+
+    # Текущий цвет текста (белый) в RGB
+    text_color = (255, 255, 255)
+
+    # Плавное изменение цвета
+    for step in range(51):  # 50 шагов для плавности
+        # Вычисляем промежуточный цвет
+        r = int(text_color[0] + (bg_color[0] - text_color[0]) * step / 50)
+        g = int(text_color[1] + (bg_color[1] - text_color[1]) * step / 50)
+        b = int(text_color[2] + (bg_color[2] - text_color[2]) * step / 50)
+
+        # Преобразуем в hex строку
+        new_color = f"#{r:02x}{g:02x}{b:02x}"
+
+        # Обновляем цвет текста
+        welcome_label.configure(text_color=new_color)
+
+        # Обновляем интерфейс и ждем немного
+        root.update()
+        root.after(40)  # 40ms * 50 шагов = 2 секунды анимации
+
+
+# Запускаем исчезновение через 10 секунд
+root.after(10000, fade_welcome_message)
 
 # Круглая кнопка запуска помощника
 circular_btn = CircularAssistantButton(content_frame, command=on_circular_button_click)

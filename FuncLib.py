@@ -1,6 +1,5 @@
 import pyautogui
 import time
-import webbrowser
 import os
 import json
 import torch
@@ -125,7 +124,7 @@ try:
         language='ru',
         speaker='ru_v3'
     )
-    print("✅ Модель успешно загружена")
+    print("✅ Модель Silero TTS загружена")
 except Exception as e:
     print(f"❌ Ошибка загрузки модели: {e}")
     raise
@@ -299,7 +298,7 @@ def extract_number_from_text(text_list):
     def get_cursor_movement():
         try:
             with open('cfg.json', 'r', encoding='utf-8') as f:
-                v = json.load(f).get("Перемещение курсора", {}).get("value", "").strip()
+                v = json.load(f).get("Перемещение курсора(в пикселях)", {}).get("value", "").strip()
                 if v:
                     if v.startswith('r"') and v.endswith('"'): v = v[2:-1]
                     return int(v)
