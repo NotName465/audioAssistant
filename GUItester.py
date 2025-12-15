@@ -274,12 +274,24 @@ def download_large_model():
         console_text.insert("end", f"📥 Ссылка: {model_url}\n")
         console_text.insert("end", f"📁 Сохраняю в: {zip_path}\n")
 
-        # Скачиваем файл с индикацией прогресса
+        # Функция для отображения прогресса в мегабайтах
         def show_progress(block_num, block_size, total_size):
             downloaded = block_num * block_size
+
+            # Конвертируем в мегабайты
+            downloaded_mb = downloaded / (1024 * 1024)
+            total_mb = total_size / (1024 * 1024)
+
+            # Рассчитываем проценты
             percent = min(100, int(downloaded * 100 / total_size))
-            if block_num % 10 == 0:  # Обновляем каждые 10 блоков чтобы не спамить
-                console_text.insert("end", f"📥 Загружено: {percent}% ({downloaded}/{total_size} байт)\n")
+
+            # Обновляем прогресс каждые 10 блоков
+            if block_num % 10 == 0:
+                # Форматируем с 2 знаками после запятой
+                downloaded_str = f"{downloaded_mb:.2f}"
+                total_str = f"{total_mb:.2f}"
+
+                console_text.insert("end", f"📥 Загружено: {percent}% ({downloaded_str}/{total_str} МБ)\n")
                 console_text.see("end")
 
         # Скачиваем файл
@@ -650,20 +662,82 @@ def wrap_text(text, max_chars=25):
     return '\n'.join(lines)
 
 
-# Функции для работы с буфером обмена - УДАЛЕНЫ (но функции оставлены пустыми для совместимости)
+# ИСПРАВЛЕННЫЕ функции для работы с буфером обмена
 def clipboard_select_all(widget):
-    """Функция оставлена для совместимости"""
-    pass
+    """Выделяет весь текст в виджете"""
+    try:
+        if isinstance(widget, (ctk.CTkTextbox, tk.Text)):
+            widget.tag_add("sel", "1.0", "end")
+        elif isinstance(widget, (ctk.CTkEntry, tk.Entry)):
+            widget.select_range(0, 'end')
+            widget.icursor('end')
+        return True
+    except Exception as e:
+        print(f"Ошибка выделения текста: {e}")
+        return False
 
 
 def clipboard_copy(widget):
-    """Функция оставлена для совместимости"""
-    pass
+    """Копирует текст из виджета в буфер обмена"""
+    try:
+        if isinstance(widget, (ctk.CTkTextbox, tk.Text)):
+            selected_text = widget.get("sel.first", "sel.last")
+        elif isinstance(widget, (ctk.CTkEntry, tk.Entry)):
+            selected_text = widget.get()
+        else:
+            return False
+
+        if selected_text:
+            pyperclip.copy(selected_text)
+            return True
+    except Exception:
+        # Если ничего не выделено, пробуем получить весь текст
+        try:
+            if isinstance(widget, (ctk.CTkTextbox, tk.Text)):
+                full_text = widget.get("1.0", "end-1c")
+            elif isinstance(widget, (ctk.CTkEntry, tk.Entry)):
+                full_text = widget.get()
+            else:
+                return False
+
+            if full_text:
+                pyperclip.copy(full_text)
+                return True
+        except Exception as e:
+            print(f"Ошибка копирования: {e}")
+    return False
 
 
 def clipboard_paste(widget):
-    """Функция оставлена для совместимости"""
-    pass
+    """Вставляет текст из буфера обмена в виджет"""
+    try:
+        clipboard_text = pyperclip.paste()
+        if not clipboard_text:
+            return False
+
+        if isinstance(widget, (ctk.CTkTextbox, tk.Text)):
+            try:
+                # Пытаемся вставить в выделенную область
+                widget.delete("sel.first", "sel.last")
+                widget.insert("insert", clipboard_text)
+            except Exception:
+                # Если ничего не выделено, вставляем в позицию курсора
+                widget.insert("insert", clipboard_text)
+        elif isinstance(widget, (ctk.CTkEntry, tk.Entry)):
+            try:
+                # Пытаемся заменить выделенный текст
+                widget.delete(0, 'end')
+                widget.insert(0, clipboard_text)
+            except Exception:
+                # Если не получилось, просто вставляем
+                widget.insert(tk.INSERT, clipboard_text)
+        else:
+            return False
+
+        return True
+    except Exception as e:
+        print(f"Ошибка вставки: {e}")
+        return False
 
 
 # УЛУЧШЕННАЯ Функция для создания метки с автоматическим переносом текста
@@ -767,10 +841,29 @@ def create_multiline_label(parent, text, max_lines=2, **kwargs):
     return label
 
 
-# Функция для включения горячих клавиш в полях ввода - УДАЛЕНЫ горячие клавиши
+# Функция для включения горячих клавиш в полях ввода
 def enable_text_shortcuts(widget):
-    """Функция оставлена для совместимости, но горячие клавиши удалены"""
-    pass
+    """Добавляет горячие клавиши Ctrl+A, Ctrl+C, Ctrl+V в виджеты"""
+
+    def select_all(event=None):
+        clipboard_select_all(widget)
+        return "break"
+
+    def copy_text(event=None):
+        clipboard_copy(widget)
+        return "break"
+
+    def paste_text(event=None):
+        clipboard_paste(widget)
+        return "break"
+
+    # Привязываем горячие клавиши
+    widget.bind("<Control-a>", select_all)
+    widget.bind("<Control-A>", select_all)  # Shift+Ctrl+A
+    widget.bind("<Control-c>", copy_text)
+    widget.bind("<Control-C>", copy_text)  # Shift+Ctrl+C
+    widget.bind("<Control-v>", paste_text)
+    widget.bind("<Control-V>", paste_text)  # Shift+Ctrl+V
 
 
 # Остальные существующие функции...
@@ -1384,20 +1477,11 @@ def create_settings_content():
     functions_clipboard_frame = ctk.CTkFrame(create_function_frame, fg_color="transparent")
     functions_clipboard_frame.pack(fill="x", padx=10, pady=(10, 5))
 
-    # Список полей ввода в этом блоке с номерами для отображения в комбобоксе
-    function_fields_display = [
-        "(1) Имя функции",
-        "(2) Путь к файлу",
-        "(3) Ключевые слова",
-        "(4) Функционал"  # Исправлено: было "(5) Функционал", стало "(4) Функционал"
-    ]
-
     # Список полей ввода в этом блоке для привязки
     function_fields = [
         ("(1) Имя функции", func_name_entry),
         ("(2) Путь к файлу", file_path_entry),
         ("(3) Ключевые слова", keywords_entry),
-        ("(4) Функционал", functionality_combobox)  # Исправлено: было "(5) Функционал", стало "(4) Функционал"
     ]
 
     # Создаем список номеров полей для выбора (с круглыми скобками)
@@ -1422,37 +1506,21 @@ def create_settings_content():
             return None
         return None
 
-    # Функция для показа временного сообщения
-    def show_temp_message(message, color="#00ff00"):
-        temp_label = create_multiline_label(functions_clipboard_frame,
-                                            message,
-                                            max_lines=2,
-                                            text_color=color,
-                                            font=ctk.CTkFont(size=10, weight="bold"))
-        temp_label.pack(side="right", padx=(10, 0))
-
-        def remove_message():
-            temp_label.destroy()
-
-        root.after(5000, remove_message)
-
     # Кнопка Ctrl+V с цветом фона меню настроек (ИСПРАВЛЕНО: цвет #333333 как в файле 1)
     def paste_to_selected_function_field():
         selected_field = get_selected_function_field()
         if selected_field:
             if isinstance(selected_field, ctk.CTkComboBox):
-                # Для комбобокса нельзя вставить текст, показываем сообщение
-                show_temp_message("❌ Нельзя вставить в выпадающий список", "#ff0000")
-            elif clipboard_paste(selected_field):
-                show_temp_message("✓ Вставлено")
+                # Для комбобокса нельзя вставить текст, просто игнорируем
+                return
             else:
-                show_temp_message("❌ Не удалось вставить", "#ff0000")
+                clipboard_paste(selected_field)
 
     ctrl_v_btn = ctk.CTkButton(functions_clipboard_frame,
                                text="Ctrl + V",
                                command=paste_to_selected_function_field,
-                               fg_color="#333333",  # ← ИЗМЕНЕНО: цвет как в файле 1
-                               hover_color="#444444",  # ← ИЗМЕНЕНО: hover цвет как в файле 1
+                               fg_color="#333333",
+                               hover_color="#444444",
                                width=80,
                                height=25)
     ctrl_v_btn.pack(side="left", padx=(0, 5))
@@ -1465,13 +1533,12 @@ def create_settings_content():
                 selected_field.set("None")
             else:
                 selected_field.delete(0, 'end')
-            show_temp_message("✓ Поле очищено")
 
     del_btn = ctk.CTkButton(functions_clipboard_frame,
                             text="Del",
                             command=clear_selected_field,
-                            fg_color="#333333",  # ← ИЗМЕНЕНО: цвет как в файле 1
-                            hover_color="#555555",  # ← ИЗМЕНЕНО: hover цвет как в файле 1
+                            fg_color="#333333",
+                            hover_color="#555555",
                             width=50,
                             height=25)
     del_btn.pack(side="left", padx=(0, 10))
@@ -1520,7 +1587,6 @@ def create_settings_content():
 
         return {**protected_sorted, **unprotected_sorted}
 
-    # Функция для создания полей ввода переменных
     # Функция для создания полей ввода переменных
     def create_variable_fields():
         nonlocal cfg_variables, variable_entries, variable_frames
@@ -1824,50 +1890,32 @@ def create_settings_content():
                     return None
                 return None
 
-            # Функция для показа временного сообщения
-            def show_var_temp_message(message, color="#00ff00"):
-                temp_label = create_multiline_label(variables_clipboard_frame,
-                                                    message,
-                                                    max_lines=2,
-                                                    text_color=color,
-                                                    font=ctk.CTkFont(size=10, weight="bold"))
-                temp_label.pack(side="right", padx=(10, 0))
-
-                def remove_message():
-                    temp_label.destroy()
-
-                root.after(5000, remove_message)
-
-            # Кнопка Ctrl+V для переменных (ИСПРАВЛЕНО: цвет #333333 как в файле 1)
+            # Кнопка Ctrl+V для переменных
             def paste_to_selected_variable_field():
                 selected_field = get_selected_variable_field()
                 if selected_field:
-                    if clipboard_paste(selected_field):
-                        show_var_temp_message("✓ Вставлено")
-                    else:
-                        show_var_temp_message("❌ Не удалось вставить", "#ff0000")
+                    clipboard_paste(selected_field)
 
             var_ctrl_v_btn = ctk.CTkButton(variables_clipboard_frame,
                                            text="Ctrl + V",
                                            command=paste_to_selected_variable_field,
-                                           fg_color="#444444",  # ← ИЗМЕНЕНО: цвет как в файле 1
-                                           hover_color="#444444",  # ← ИЗМЕНЕНО: hover цвет как в файле 1
+                                           fg_color="#444444",
+                                           hover_color="#444444",
                                            width=80,
                                            height=25)
             var_ctrl_v_btn.pack(side="left", padx=(0, 5))
 
-            # Кнопка "Del" для очистки выбранного поля переменной (ИСПРАВЛЕНО: цвет #333333 как в файле 1)
+            # Кнопка "Del" для очистки выбранного поля переменной
             def clear_selected_variable_field():
                 selected_field = get_selected_variable_field()
                 if selected_field:
                     selected_field.delete(0, 'end')
-                    show_var_temp_message("✓ Поле очищено")
 
             var_del_btn = ctk.CTkButton(variables_clipboard_frame,
                                         text="Del",
                                         command=clear_selected_variable_field,
-                                        fg_color="#444444",  # ← ИЗМЕНЕНО: цвет как в файле 1
-                                        hover_color="#555555",  # ← ИЗМЕНЕНО: hover цвет как в файле 1
+                                        fg_color="#444444",
+                                        hover_color="#555555",
                                         width=50,
                                         height=25)
             var_del_btn.pack(side="left", padx=(0, 10))
@@ -1991,29 +2039,17 @@ def create_settings_content():
     info_container = ctk.CTkFrame(model_section, fg_color="transparent")
     info_container.pack(fill="x", padx=15, pady=(0, 10))
 
-    # Предупреждение о больших моделях (первый абзац)
+    # Предупреждение о больших моделях (первый абзац) - БЕЗ ЗНАКА ВОПРОСА
     warning_frame = ctk.CTkFrame(info_container, fg_color="transparent")
     warning_frame.pack(fill="x", pady=(0, 5))
 
-    warning_text = "• ВНИМАНИЕ! При использовании большой модели значительно увеличиться не только качество распознания речи, но и время запуска приложения и время обработки команд."
+    warning_text = "ВНИМАНИЕ! При использовании большой модели значительно увеличиться не только качество распознания речи, но и время запуска приложения и время обработки команд."
     warning_label = create_multiline_label(warning_frame,
                                            warning_text,
-                                           max_lines=4,
+                                           max_lines=5,
                                            text_color="#ff6666",  # Красный цвет
                                            font=ctk.CTkFont(size=11, weight="bold"))  # Жирный шрифт
     warning_label.pack(anchor="w", padx=(0, 0))
-
-    # Инструкция по добавлению моделей (второй абзац)
-    info_frame = ctk.CTkFrame(info_container, fg_color="transparent")
-    info_frame.pack(fill="x", pady=(5, 0))
-
-    info_text = "• Добавьте модели в папку 'models' в директории проекта"
-    info_label = create_multiline_label(info_frame,
-                                        info_text,
-                                        max_lines=2,
-                                        text_color="#cccccc",
-                                        font=ctk.CTkFont(size=11))
-    info_label.pack(anchor="w", padx=(0, 0))
 
     # Кнопка для скачивания большой модели
     download_button_frame = ctk.CTkFrame(model_section, fg_color="transparent")
@@ -2025,20 +2061,22 @@ def create_settings_content():
         download_thread = threading.Thread(target=download_large_model, daemon=True)
         download_thread.start()
 
+    # Используем простой CTkButton с двумя строками через \n и настроенным anchor
     download_btn = ctk.CTkButton(download_button_frame,
-                                 text="⬇️ Скачать большую библиотеку \n для распознавания",
+                                 text="Скачать большую библиотеку\nдля распознавания",
                                  command=download_large_model_thread,
                                  fg_color="#444444",
                                  hover_color="#555555",
-                                 height=35,
-                                 font=ctk.CTkFont(size=12, weight="bold"))
+                                 height=50,  # Увеличиваем высоту для двух строк
+                                 font=ctk.CTkFont(size=12, weight="bold"),
+                                 anchor="w")  # Выравнивание по левому краю
     download_btn.pack(fill="x", pady=(5, 0))
 
     # Информация о большой модели
     info_large_model_frame = ctk.CTkFrame(download_button_frame, fg_color="transparent")
     info_large_model_frame.pack(fill="x", pady=(5, 0))
 
-    large_model_info = "• Размер: ~1.8 GB\n• Точность: высокая\n• Язык: русский"
+    large_model_info = "Размер: ~1.8 GB\nТочность: высокая\nЯзык: русский"
     large_model_label = create_multiline_label(info_large_model_frame,
                                                large_model_info,
                                                max_lines=4,
@@ -2100,13 +2138,11 @@ def create_settings_content():
         no_models_frame.pack(pady=10)
 
         no_models_label = create_multiline_label(no_models_frame,
-                                                 "Модели не найдены. Добавьте модели в папку 'models'",
-                                                 max_lines=3,
+                                                 "Модели не найдены",
+                                                 max_lines=2,
                                                  text_color="#cccccc",
                                                  font=ctk.CTkFont(size=12))
         no_models_label.pack()
-
-    # ========== УДАЛЕН: Блок "Устройства ввода" (микрофоны) ==========
 
     # Привязываем событие клика к корневому окна для потери фокуса только на фоне
     model_section.bind("<Button-1>", lose_focus_on_background)

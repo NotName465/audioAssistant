@@ -12,8 +12,7 @@ def load_voice_config():
     """Загружает конфигурацию голоса из config.json"""
     config_path = "config.json"
     default_config = {
-        "selected_microphone": "",
-        "selected_voice": 1  # По умолчанию голос baya (индекс 1)
+        "selected_voice": 1
     }
 
     try:
@@ -679,34 +678,153 @@ def close_dota():
         print(f"Ошибка при закрытии Dota 2: {e}")
 
 
-def open_browser_and_search(browser_path, search_query):
-    """Открывает браузер и выполняет поиск"""
+import pyautogui
+import time
+import os
+import json
+import torch
+import sounddevice as sd
+import random
+import pyperclip
+import webbrowser
+import psutil
+import ctypes
+
+# Инициализация WinAPI для Библиотеки 1
+user32 = ctypes.windll.user32
+VK_CONTROL = 0x11
+VK_RETURN = 0x0D
+VK_V = 0x56
+VK_W = 0x57
+KEYEVENTF_KEYUP = 0x0002
+
+
+# Функция проверки запущенного приложения
+def is_app_running(app_path):
+    """Проверяет, запущено ли приложение по его пути"""
     try:
-        actual_browser_path = browser_path if browser_path and os.path.exists(browser_path) else BROWSER_PATH
+        # Нормализуем путь для сравнения
+        target_path = os.path.abspath(app_path).lower()
 
-        os.startfile(actual_browser_path)
-        time.sleep(2)
+        for process in psutil.process_iter(['pid', 'name', 'exe']):
+            try:
+                process_exe = process.info['exe']
+                if process_exe and os.path.abspath(process_exe).lower() == target_path:
+                    print(f"✅ Приложение запущено (PID: {process.info['pid']})")
+                    return True
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
 
-        pyautogui.hotkey('ctrl', 't')
-        time.sleep(0.5)
+        print("❌ Приложение не запущено")
+        return False
 
-        pyautogui.hotkey('ctrl', 'l')
-        time.sleep(0.5)
+    except Exception as e:
+        print(f"❌ Ошибка проверки: {e}")
+        return False
 
-        pyautogui.write(f'{search_query}')
-        pyautogui.press('enter')
 
-        messages = [
+# Функция восстановления окна браузера
+def restore_browser_window():
+    """Специальная функция для восстановления окна браузера"""
+    user32 = ctypes.windll.user32
+
+    def enum_windows(hwnd, param):
+        try:
+            # Проверяем видимость
+            if not user32.IsWindowVisible(hwnd):
+                return True
+
+            # Получаем заголовок
+            length = user32.GetWindowTextLengthW(hwnd)
+            if length > 0:
+                buffer = ctypes.create_unicode_buffer(length + 1)
+                user32.GetWindowTextW(hwnd, buffer, length + 1)
+                title = buffer.value
+
+                # Ищем окна браузера по заголовку
+                if title and any(keyword in title for keyword in
+                                 ['Yandex', 'Яндекс Браузер', 'Opera', 'Chrome', 'Firefox', 'Edge']):
+                    print(f"Найден браузер: {title}")
+
+                    if user32.IsIconic(hwnd):
+                        user32.ShowWindow(hwnd, 9)
+
+                    user32.SetForegroundWindow(hwnd)
+                    return False
+        except:
+            pass
+        return True
+
+    callback = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)(enum_windows)
+    user32.EnumWindows(callback, 0)
+
+
+def open_browser_and_search(browser_path: str, search_query: str):
+    """Открывает браузер и вставляет текст в поисковую строку с синтезом речи"""
+
+    try:
+        # Синтез речи перед открытием браузера
+        messages_before = [
             "Ищу информацию по вашему запросу.",
             "Выполняю поиск в интернете.",
             "Загружаю результаты поиска.",
             "Начинаю поиск в сети.",
             "Обрабатываю ваш поисковый запрос."
         ]
-        message = message_history.get_unique_message(messages, SELECTED_VOICE)
+        message = message_history.get_unique_message(messages_before, SELECTED_VOICE)
         speak(message, voice=None)
 
+        # Сохраняем исходное содержимое буфера обмена
+        original_clipboard = pyperclip.paste()
+
+        # Копируем поисковый запрос в буфер обмена
+        pyperclip.copy(search_query)
+        print(f"✅ Поисковый запрос скопирован: '{search_query}'")
+
+        # Используем переданный путь или путь по умолчанию
+        actual_browser_path = browser_path if browser_path and os.path.exists(browser_path) else BROWSER_PATH
+
+        if is_app_running(actual_browser_path):
+            restore_browser_window()
+        else:
+            try:
+                os.startfile(actual_browser_path)
+            except:
+                webbrowser.open("http://yandex.ru")
+            time.sleep(1)
+            pyautogui.click(button='middle')
+            time.sleep(0.1)
+
+        # Используем Ctrl+L для фокуса на адресную строку
+        time.sleep(0.5)
+
+        # Альтернативный способ: Ctrl+L для адресной строки
+        pyautogui.hotkey('ctrl', 'l')
+        time.sleep(0.5)
+
+        # Вставляем текст из буфера обмена (Ctrl+V)
+        user32.keybd_event(VK_CONTROL, 0, 0, 0)
+        user32.keybd_event(VK_V, 0, 0, 0)
+        user32.keybd_event(VK_V, 0, KEYEVENTF_KEYUP, 0)
+        user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
+        time.sleep(0.5)
+
+        # Нажатие Enter
+        user32.keybd_event(VK_RETURN, 0, 0, 0)
+        user32.keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, 0)
+
+        time.sleep(1)
+
+        # Восстановление исходного содержимого буфера обмена
+        pyperclip.copy(original_clipboard)
+
+        print("✅ Поиск успешно выполнен!")
+        return True
+
     except Exception as e:
+        print(f"❌ Ошибка: {e}")
+
+        # Синтез речи при ошибке
         error_messages = [
             "Не удалось выполнить поиск.",
             "Возникла ошибка при открытии браузера.",
@@ -716,7 +834,14 @@ def open_browser_and_search(browser_path, search_query):
         ]
         message = message_history.get_unique_message(error_messages, SELECTED_VOICE)
         speak(message, voice=None)
-        print(f"Ошибка при поиске: {e}")
+
+        # Пытаемся восстановить буфер в случае ошибки
+        try:
+            pyperclip.copy(original_clipboard)
+            print(f"🔄 Буфер восстановлен после ошибки")
+        except:
+            pass
+        return False
 
 
 def remove_keywords(text):
@@ -798,8 +923,32 @@ def go_to_tab(tab_number):
 
 
 def scroll_down():
-    """Прокручивает страницу вниз"""
-    pyautogui.scroll(-3)
+    default_value = 250
+
+    try:
+        with open('cfg.json', 'r', encoding='utf-8') as f:
+            cfg_data = json.load(f)
+
+            scroll_var = cfg_data.get("Пролистывание страницы(от 1 до 650)", {})
+
+            # Извлекаем строковое значение
+            scroll_value_str = scroll_var.get("value", "")
+
+            # Преобразуем в число
+            scroll_value = int(scroll_value_str)
+
+            if 1 <= scroll_value <= 650:
+                default_value = scroll_value
+            else:
+                print(
+                    f"Значение {scroll_value} вне диапазона 1-650. Используется значение по умолчанию {default_value}")
+
+    except (FileNotFoundError, json.JSONDecodeError):
+        print(f"Файл cfg.json не найден или поврежден. Используется значение по умолчанию {default_value}")
+    except (KeyError, ValueError, TypeError):
+        print(f"Некорректное значение в cfg.json. Используется значение по умолчанию {default_value}")
+
+    pyautogui.scroll(-default_value)
 
     messages = [
         "Прокручиваю вниз.",
@@ -813,8 +962,33 @@ def scroll_down():
 
 
 def scroll_up():
-    """Прокручивает страницу вверх"""
-    pyautogui.scroll(3)
+    default_value = 250
+
+    try:
+        with open('cfg.json', 'r', encoding='utf-8') as f:
+            cfg_data = json.load(f)
+
+
+            scroll_var = cfg_data.get("Пролистывание страницы(от 1 до 650)", {})
+
+            # Извлекаем строковое значение
+            scroll_value_str = scroll_var.get("value", "")
+
+            # Преобразуем в число
+            scroll_value = int(scroll_value_str)
+
+
+            if 1 <= scroll_value <= 650:
+                default_value = scroll_value
+            else:
+                print(f"Значение {scroll_value} вне диапазона 1-650. Используется значение по умолчанию {default_value}")
+
+    except (FileNotFoundError, json.JSONDecodeError):
+        print(f"Файл cfg.json не найден или поврежден. Используется значение по умолчанию {default_value}")
+    except (KeyError, ValueError, TypeError):
+        print(f"Некорректное значение в cfg.json. Используется значение по умолчанию {default_value}")
+
+    pyautogui.scroll(default_value)
 
     messages = [
         "Прокручиваю вверх.",

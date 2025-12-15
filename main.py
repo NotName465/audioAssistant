@@ -117,7 +117,7 @@ def execute_command(command, text_list):
         'closeBrowser': close_browser,
         'openDota': open_dota,
         'closeDota': close_dota,
-        'open_browser_and_search': lambda query: open_browser_and_search(BROWSER_PATH, query),
+        'open_browser_and_search': open_browser_and_search,
         'close_tab': close_tab,
         'new_tab': new_tab,
         'go_to_tab': go_to_tab,

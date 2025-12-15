@@ -232,6 +232,58 @@
       "function": "double_click",
       "args": [],
       "protected": true
+    },
+    {
+      "nameForGUI": "Открыть танки",
+      "name": "custom_open_открыть_танки",
+      "keywords": [
+        "открой",
+        "танки"
+      ],
+      "function": "AbsolutStarter",
+      "args": [
+        "\"C:\\Users\\user\\Desktop\\TerraTechWin64.exe.lnk\""
+      ],
+      "protected": false
+    },
+    {
+      "nameForGUI": "Закрой танки",
+      "name": "custom_close_закрой_танки",
+      "keywords": [
+        "закрыть",
+        "танки"
+      ],
+      "function": "AbsolutCloser",
+      "args": [
+        "\"C:\\Users\\user\\Desktop\\TerraTechWin64.exe.lnk\""
+      ],
+      "protected": false
+    },
+    {
+      "nameForGUI": "Открыть завод",
+      "name": "custom_open_открыть_завод",
+      "keywords": [
+        "открой",
+        "завод"
+      ],
+      "function": "AbsolutStarter",
+      "args": [
+        "\"C:\\GOG Games\\bin\\x64\\factorio.exe\""
+      ],
+      "protected": false
+    },
+    {
+      "nameForGUI": "Закрыть завод",
+      "name": "custom_close_закрыть_завод",
+      "keywords": [
+        "закрыть",
+        "завод"
+      ],
+      "function": "AbsolutCloser",
+      "args": [
+        "\"C:\\GOG Games\\bin\\x64\\factorio.exe\""
+      ],
+      "protected": false
     }
   ]
 }
